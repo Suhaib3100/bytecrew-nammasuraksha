@@ -28,14 +28,39 @@ export interface MessageAnalysis {
   }>;
 }
 
-export interface AnalysisResult {
-  url?: string;
-  content: string;
-  security?: SecurityAnalysis;
-  message?: MessageAnalysis;
+export interface BasicAnalysis {
+  length: number;
+  hasLinks: boolean;
+  hasPhoneNumbers: boolean;
+  hasEmails: boolean;
+  hasUrgencyWords: boolean;
+  hasThreateningWords: boolean;
+  hasSuspiciousKeywords: boolean;
+}
+
+export interface AIAnalysis {
+  threatLevel: 'low' | 'medium' | 'high' | 'unknown';
+  scamType?: string;
+  indicators: Array<{
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+  suspiciousPatterns: Array<{
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
   recommendations: string[];
   summary: string;
+}
+
+export interface AnalysisResult {
+  content: string;
+  basicAnalysis: BasicAnalysis;
+  aiAnalysis: AIAnalysis;
   timestamp: string;
+  error?: string;
+  recommendations: string[];
+  summary: string;
 }
 
 export interface ApiResponse<T> {
@@ -58,37 +83,63 @@ const createErrorResponse = (error: any, defaultMessage: string): AnalysisRespon
   success: false,
   analysis: {
     content: '',
-    recommendations: [],
-    summary: 'Analysis failed',
-    timestamp: new Date().toISOString()
+    basicAnalysis: {
+      length: 0,
+      hasLinks: false,
+      hasPhoneNumbers: false,
+      hasEmails: false,
+      hasUrgencyWords: false,
+      hasThreateningWords: false,
+      hasSuspiciousKeywords: false
+    },
+    aiAnalysis: {
+      threatLevel: 'unknown',
+      indicators: [],
+      suspiciousPatterns: [],
+      recommendations: ['Unable to complete analysis due to an error'],
+      summary: 'Analysis could not be completed due to an error'
+    },
+    timestamp: new Date().toISOString(),
+    error: error?.message || defaultMessage,
+    recommendations: ['Unable to complete analysis due to an error'],
+    summary: 'Analysis could not be completed due to an error'
   },
   error: error?.response?.data?.error || defaultMessage,
   details: error?.response?.data?.details
 });
 
-export const analyzeWebpage = async (url: string, content: string, userId?: string): Promise<AnalysisResponse> => {
+export const analyzeWebpage = async (url: string, userId?: string): Promise<AnalysisResponse> => {
   try {
     const response = await axios.post<AnalysisResponse>(`${API_URL}/analyze/webpage`, {
       url,
-      content,
       userId
     });
     return response.data;
-  } catch (error) {
+  } catch (error: any) {
     return {
       ...createErrorResponse(error, 'Failed to analyze webpage'),
       analysis: {
-        url,
-        content,
-        security: {
-          threatLevel: 'low',
-          threats: [],
-          suspiciousPatterns: [],
-          isSecure: true
+        content: '',
+        basicAnalysis: {
+          length: 0,
+          hasLinks: false,
+          hasPhoneNumbers: false,
+          hasEmails: false,
+          hasUrgencyWords: false,
+          hasThreateningWords: false,
+          hasSuspiciousKeywords: false
         },
-        recommendations: [],
-        summary: 'Analysis failed',
-        timestamp: new Date().toISOString()
+        aiAnalysis: {
+          threatLevel: 'unknown',
+          indicators: [],
+          suspiciousPatterns: [],
+          recommendations: ['Unable to complete analysis due to an error'],
+          summary: 'Analysis could not be completed due to an error'
+        },
+        timestamp: new Date().toISOString(),
+        error: error?.message || 'Failed to analyze webpage',
+        recommendations: ['Unable to complete analysis due to an error'],
+        summary: 'Analysis failed'
       }
     };
   }
@@ -102,29 +153,18 @@ export const analyzeMessage = async (content: string, userId?: string): Promise<
     });
     return response.data;
   } catch (error) {
-    return {
-      ...createErrorResponse(error, 'Failed to analyze message'),
-      analysis: {
-        content,
-        message: {
-          threatLevel: 'low',
-          scamType: 'unknown',
-          indicators: [],
-          suspiciousPatterns: []
-        },
-        recommendations: [],
-        summary: 'Analysis failed',
-        timestamp: new Date().toISOString()
-      }
-    };
+    return createErrorResponse(error, 'Failed to analyze message');
   }
 };
 
 export const getAnalysisHistory = async (userId?: number): Promise<AnalysisResponse[]> => {
   try {
-    const response = await axios.get<AnalysisResponse[]>(`${API_URL}/analyses${userId ? `?userId=${userId}` : ''}`);
+    const response = await axios.get<AnalysisResponse[]>(`${API_URL}/analyze/history`, {
+      params: { userId }
+    });
     return response.data;
   } catch (error) {
+    console.error('Error fetching analysis history:', error);
     return [];
   }
 }; 

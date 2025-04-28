@@ -1,4 +1,5 @@
 const { URL } = require('url');
+const db = require('../config/database');
 
 exports.analyzeWebpageContent = async (content, url) => {
   try {
@@ -120,4 +121,47 @@ function isValidUrl(url) {
   } catch {
     return false;
   }
-} 
+}
+
+/**
+ * Saves analysis results to the database
+ * @param {Object} analysis - The analysis results to save
+ * @param {string} userId - Optional user ID associated with the analysis
+ * @returns {Promise<void>}
+ */
+async function saveAnalysis(analysis, userId = null) {
+  try {
+    const { content, basicAnalysis, aiAnalysis, timestamp } = analysis;
+    
+    // Check if user exists if userId is provided
+    let validUserId = null;
+    if (userId && !isNaN(userId)) {
+      const userResult = await db.query('SELECT id FROM users WHERE id = $1', [parseInt(userId)]);
+      if (userResult.rows.length > 0) {
+        validUserId = parseInt(userId);
+      }
+    }
+
+    // Save to message_analyses table
+    await db.query(
+      'INSERT INTO message_analyses (content, result, user_id, created_at) VALUES ($1, $2, $3, $4)',
+      [
+        content,
+        {
+          basicAnalysis,
+          aiAnalysis,
+          timestamp
+        },
+        validUserId,
+        timestamp
+      ]
+    );
+  } catch (error) {
+    console.error('Error saving analysis:', error);
+    throw error;
+  }
+}
+
+module.exports = {
+  saveAnalysis
+}; 

@@ -1,50 +1,62 @@
-const { analyzeText } = require('./aiService');
+const { analyzeMessageWithAI } = require('./aiService');
 
+/**
+ * Analyzes message content for potential scams and threats
+ * @param {string} content - The message content to analyze
+ * @returns {Promise<Object>} Analysis results
+ */
 async function analyzeMessageContent(content) {
-  const analysis = {
-    content,
-    message: {
-      threatLevel: 'low',
-      scamType: 'unknown',
-      indicators: [],
-      suspiciousPatterns: []
-    },
-    recommendations: [],
-    summary: '',
-    timestamp: new Date().toISOString()
-  };
-
   try {
-    const aiAnalysis = await analyzeText(content, 'message');
-    
-    if (aiAnalysis.threatLevel) {
-      analysis.message.threatLevel = aiAnalysis.threatLevel;
+    if (!content || typeof content !== 'string') {
+      throw new Error('Invalid message content');
     }
 
-    if (aiAnalysis.scamType) {
-      analysis.message.scamType = aiAnalysis.scamType;
-    }
+    // Basic content analysis
+    const basicAnalysis = {
+      length: content.length,
+      hasLinks: /https?:\/\/[^\s]+/.test(content),
+      hasPhoneNumbers: /\b\d{10}\b/.test(content),
+      hasEmails: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/.test(content),
+      hasUrgencyWords: /urgent|immediately|quick|hurry|limited time|act now/i.test(content),
+      hasThreateningWords: /threat|danger|risk|warning|alert/i.test(content),
+      hasSuspiciousKeywords: /password|login|account|verify|confirm|update|security/i.test(content)
+    };
 
-    if (aiAnalysis.indicators) {
-      analysis.message.indicators = aiAnalysis.indicators;
-    }
+    // AI-based content analysis
+    const aiAnalysis = await analyzeMessageWithAI(content);
 
-    if (aiAnalysis.suspiciousPatterns) {
-      analysis.message.suspiciousPatterns = aiAnalysis.suspiciousPatterns;
-    }
-
-    if (aiAnalysis.recommendations) {
-      analysis.recommendations = aiAnalysis.recommendations;
-    }
-
-    if (aiAnalysis.summary) {
-      analysis.summary = aiAnalysis.summary;
-    }
-
-    return analysis;
+    // Combine analyses
+    return {
+      content,
+      basicAnalysis,
+      aiAnalysis,
+      timestamp: new Date().toISOString()
+    };
   } catch (error) {
     console.error('Error in message analysis:', error);
-    throw error;
+    // Return a default analysis with error information
+    return {
+      content,
+      basicAnalysis: {
+        length: content.length,
+        hasLinks: false,
+        hasPhoneNumbers: false,
+        hasEmails: false,
+        hasUrgencyWords: false,
+        hasThreateningWords: false,
+        hasSuspiciousKeywords: false
+      },
+      aiAnalysis: {
+        threatLevel: 'unknown',
+        scamType: 'unknown',
+        indicators: [],
+        suspiciousPatterns: [],
+        recommendations: ['Unable to complete full analysis due to an error'],
+        summary: 'Analysis could not be completed due to an error'
+      },
+      timestamp: new Date().toISOString(),
+      error: error.message
+    };
   }
 }
 

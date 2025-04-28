@@ -87,7 +87,7 @@ Format the response as a JSON object with the following structure:
   }
 }
 
-exports.analyzeContentWithAI = async (content, url) => {
+async function analyzeContentWithAI(content, url) {
   try {
     const prompt = `Analyze this webpage content for security threats. Focus on specific findings in the actual content:
 
@@ -138,9 +138,9 @@ Format the response as a JSON object with the following structure:
     console.error('Error in AI analysis:', error);
     throw error;
   }
-};
+}
 
-exports.analyzeMessageWithAI = async (message) => {
+async function analyzeMessageWithAI(message) {
   try {
     const prompt = `Analyze this message for potential scams and suspicious content:
 ${message}
@@ -191,9 +191,9 @@ Format the response as a JSON object with the following structure:
     console.error('Error in AI analysis:', error);
     throw error;
   }
-};
+}
 
-exports.checkPhishingWithAI = async (url, content) => {
+async function checkPhishingWithAI(url, content) {
   try {
     const prompt = `Analyze the following URL and content for potential phishing indicators:
 URL: ${url}
@@ -229,9 +229,9 @@ Please provide:
     console.error('Error checking phishing with AI:', error);
     throw error;
   }
-};
+}
 
-exports.generateThreatReport = async (threatData) => {
+async function generateThreatReport(threatData) {
   try {
     const prompt = `Generate a detailed threat report based on the following data:
 ${JSON.stringify(threatData, null, 2)}
@@ -267,8 +267,12 @@ Please include:
     console.error('Error generating threat report with AI:', error);
     throw error;
   }
-};
+}
 
 module.exports = {
-  analyzeText
+  analyzeText,
+  analyzeContentWithAI,
+  analyzeMessageWithAI,
+  checkPhishingWithAI,
+  generateThreatReport
 }; 
