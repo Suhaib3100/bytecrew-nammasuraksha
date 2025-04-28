@@ -38,7 +38,7 @@ _(Status table will be updated as modules progress.)_
 | Frontend (Mobile)  | React Native (Expo)            |
 | Chrome Extension   | HTML, JS (Optional React)      |
 | Backend            | Node.js, Express.js            |
-| Database           | PostgreSQL, Prisma ORM         |
+| Database           | PostgreSQL, Neon Tech         |
 | AI Integration     | OpenAI API (GPT-4)             |
 | Hosting/Infra      | Vercel, EC2, Railway, Amazon RDS |
 
