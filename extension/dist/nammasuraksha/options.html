@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NammaSuraksha - Settings</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Extension Settings</h1>
+    
+    <div class="settings-group">
+      <div class="setting">
+        <label>
+          <input type="checkbox" id="autoScan">
+          Auto-scan on page load
+        </label>
+      </div>
+      
+      <div class="setting">
+        <label for="confidenceThreshold">Confidence Threshold (%)</label>
+        <input type="range" id="confidenceThreshold" min="0" max="100" step="5">
+        <span id="thresholdValue">80%</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button id="saveButton">Save Settings</button>
+      <div id="status" class="hidden">Settings saved!</div>
+    </div>
+  </div>
+  <script src="options.js"></script>
+</body>
+</html> 

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NammaSuraksha - Phishing Detector</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Phishing Detector</h1>
+    
+    <div class="input-group">
+      <input type="text" id="urlInput" placeholder="Enter URL or text to analyze">
+      <div class="button-group">
+        <button id="scanButton">Scan</button>
+        <button id="clearButton">Clear</button>
+      </div>
+    </div>
+
+    <div id="result" class="hidden">
+      <div id="statusIcon"></div>
+      <div id="statusText"></div>
+      <div id="details">
+        <p>Category: <span id="category"></span></p>
+        <p>Confidence: <span id="confidence"></span></p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <a href="options.html" target="_blank">Settings</a>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html> 
