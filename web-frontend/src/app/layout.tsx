@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stock Analysis",
-  description: "Stock analysis application",
+  title: "ByteCrew - NammaSuraksha Hackathon Project",
+  description: "A complete Cyber Security Platform for the AI enabled phising link detection and awareness provider",
 };
 
 export default function RootLayout({

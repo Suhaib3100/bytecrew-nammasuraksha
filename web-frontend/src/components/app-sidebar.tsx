@@ -30,7 +30,8 @@ import {
   HelpCircle,
   Chrome,
   Smartphone,
-  Activity
+  Activity,
+  Link2
 } from "lucide-react";
 import {
   Sidebar,
@@ -58,6 +59,7 @@ export const navigationData = {
       items: [
         { name: "Overview", url: "/app", icon: Command },
         { name: "Analyze Message", url: "/app/analyze", icon: AlertTriangle },
+        { name: "Phishing Detection", url: "/app/phishing", icon: Link2 },
       ],
     },
     {
