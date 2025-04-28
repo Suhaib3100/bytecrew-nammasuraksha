@@ -1,0 +1,14 @@
+Please create the following icon files for the extension:
+
+1. icon16.png (16x16 pixels)
+2. icon48.png (48x48 pixels)
+3. icon128.png (128x128 pixels)
+
+The icons should follow these guidelines:
+- Use a shield or security-related symbol
+- Use a modern, flat design style
+- Primary color: #2196F3 (Blue)
+- Secondary colors: #4CAF50 (Green) for safe status
+- Accent colors: #FFC107 (Amber) for warnings, #F44336 (Red) for danger
+
+The icons should be clear and recognizable even at small sizes. 

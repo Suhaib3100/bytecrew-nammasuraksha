@@ -1,69 +1,133 @@
-// Initialize extension
+// Constants for API endpoints
+const API_ENDPOINT = 'http://localhost:3001/api';  // We'll update this with actual endpoint
+
+// Initialize counters in storage
 chrome.runtime.onInstalled.addListener(() => {
-  // Create context menu item
-  chrome.contextMenus.create({
-    id: 'scanLink',
-    title: 'Scan this link for phishing',
-    contexts: ['link']
-  });
-
-  // Set default settings
-  chrome.storage.sync.set({
-    autoScan: true,
-    confidenceThreshold: 80
-  });
+    chrome.storage.local.set({
+        threatsBlocked: 0,
+        linksScanned: 0
+    });
 });
 
-// Handle context menu clicks
-chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-  if (info.menuItemId === 'scanLink') {
-    const url = info.linkUrl;
-    
+// Listen for URL changes
+chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
+    // Only check main frame navigation
+    if (details.frameId !== 0) return;
+
     try {
-      const response = await fetch('http://localhost:3000/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: url,
-          sourceType: 'Web'
-        })
-      });
+        const url = new URL(details.url);
+        
+        // Skip checking for known safe domains
+        if (isWhitelisted(url.hostname)) return;
 
-      const result = await response.json();
-      
-      // Show notification
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon48.png',
-        title: result.isPhishingLink ? '⚠️ Phishing Link Detected' : '✅ Link Appears Safe',
-        message: `Category: ${result.linkCategory}\nConfidence: ${result.confidenceScore}%`
-      });
+        // Increment links scanned counter
+        incrementCounter('linksScanned');
 
+        // Check for phishing
+        const securityCheck = await checkUrlSecurity(url.href);
+
+        if (securityCheck.threatLevel === 'danger') {
+            // Block navigation and show warning
+            incrementCounter('threatsBlocked');
+            chrome.tabs.update(details.tabId, {
+                url: chrome.runtime.getURL('warning.html') + '?url=' + encodeURIComponent(url.href)
+            });
+        }
     } catch (error) {
-      console.error('Error analyzing link:', error);
-      chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon48.png',
-        title: 'Error',
-        message: 'Failed to analyze the link'
-      });
+        console.error('Error in URL check:', error);
     }
-  }
 });
 
-// Handle badge updates
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'updateBadge') {
-    chrome.action.setBadgeText({
-      text: message.count > 0 ? message.count.toString() : '',
-      tabId: sender.tab.id
+// Listen for email content scanning (Gmail, Outlook Web, etc.)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && isEmailProvider(tab.url)) {
+        chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['emailScanner.js']
+        });
+    }
+});
+
+// Listen for social media content scanning
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'complete' && isSocialMedia(tab.url)) {
+        chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['socialMediaScanner.js']
+        });
+    }
+});
+
+async function checkUrlSecurity(url) {
+    try {
+        const response = await fetch(`${API_ENDPOINT}/check-url`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (!response.ok) throw new Error('API request failed');
+
+        const data = await response.json();
+        return {
+            threatLevel: data.threatLevel,
+            message: data.message
+        };
+    } catch (error) {
+        console.error('Security check failed:', error);
+        return {
+            threatLevel: 'warning',
+            message: 'Could not verify security status'
+        };
+    }
+}
+
+async function incrementCounter(counterName) {
+    const stats = await chrome.storage.local.get(counterName);
+    await chrome.storage.local.set({
+        [counterName]: (stats[counterName] || 0) + 1
     });
-    
-    chrome.action.setBadgeBackgroundColor({
-      color: '#FF0000',
-      tabId: sender.tab.id
-    });
-  }
-}); 
+}
+
+function isWhitelisted(hostname) {
+    const whitelist = [
+        'google.com',
+        'microsoft.com',
+        'github.com',
+        // Add more trusted domains
+    ];
+    return whitelist.some(domain => hostname.endsWith(domain));
+}
+
+function isEmailProvider(url) {
+    const emailProviders = [
+        'mail.google.com',
+        'outlook.live.com',
+        'outlook.office365.com',
+        'mail.yahoo.com'
+    ];
+    try {
+        const hostname = new URL(url).hostname;
+        return emailProviders.includes(hostname);
+    } catch {
+        return false;
+    }
+}
+
+function isSocialMedia(url) {
+    const socialPlatforms = [
+        'twitter.com',
+        'facebook.com',
+        'instagram.com',
+        'linkedin.com',
+        'web.whatsapp.com'
+    ];
+    try {
+        const hostname = new URL(url).hostname;
+        return socialPlatforms.includes(hostname);
+    } catch {
+        return false;
+    }
+} 

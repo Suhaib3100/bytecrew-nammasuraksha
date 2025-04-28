@@ -1,78 +1,89 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  // Get current tab
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    // Get current tab URL
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const url = tab.url;
 
-  // Request scan results from content script
-  chrome.tabs.sendMessage(tab.id, { type: 'get_scan_results' }, (results) => {
-    renderScanResults(results);
-  });
+    // Update security status
+    updateSecurityStatus(url);
 
-  // Set up event listeners
-  setupEventListeners();
-  updateStats();
+    // Load stats
+    loadStats();
+
+    // Add settings button listener
+    document.getElementById('settings-btn').addEventListener('click', openSettings);
 });
 
-function renderScanResults(results) {
-  const statusIndicator = document.querySelector('.status-indicator');
-  const statusTitle = document.getElementById('statusTitle');
-  const statusDescription = document.getElementById('statusDescription');
-  const resultsGrid = document.querySelector('.results-grid');
-
-  if (!results) {
-    statusIndicator.style.backgroundColor = 'var(--warning-color)';
-    statusTitle.textContent = 'No Data';
-    statusDescription.textContent = 'No scan results available for this page.';
-    resultsGrid.innerHTML = '<div style="grid-column: span 2; text-align:center; color:#888;">No threats detected or scan not run yet.</div>';
-    return;
-  }
-
-  // Show summary
-  if (results.textAnalysis.isPhishing || (results.suspiciousLinks && results.suspiciousLinks.length > 0)) {
-    statusIndicator.style.backgroundColor = 'var(--danger-color)';
-    statusTitle.textContent = 'Threats Detected!';
-    statusDescription.textContent = 'Suspicious content or links found on this page.';
-  } else {
-    statusIndicator.style.backgroundColor = 'var(--success-color)';
-    statusTitle.textContent = 'Safe Site';
-    statusDescription.textContent = 'No suspicious activity detected.';
-  }
-
-  // Show details in results grid
-  let html = '';
-  if (results.textAnalysis.isPhishing) {
-    html += `<div class="result-item" style="grid-column: span 2; background:var(--danger-color);color:white;">
-      <div class="result-icon" style="background:var(--danger-color);"></div>
-      <span>Phishing keywords: ${results.textAnalysis.indicators.join(', ')}</span>
-    </div>`;
-  }
-  if (results.suspiciousLinks && results.suspiciousLinks.length > 0) {
-    results.suspiciousLinks.forEach(link => {
-      html += `<div class="result-item" style="background:var(--warning-color);color:#222;">
-        <div class="result-icon" style="background:var(--warning-color);"></div>
-        <span>Suspicious link: <a href="${link.href}" target="_blank" style="color:#1d4ed8;">${link.text || link.href}</a></span>
-      </div>`;
-    });
-  }
-  if (!html) {
-    html = '<div style="grid-column: span 2; text-align:center; color:#888;">No threats detected.</div>';
-  }
-  resultsGrid.innerHTML = html;
+async function updateSecurityStatus(url) {
+    const statusElement = document.getElementById('security-status');
+    const response = await checkUrlSecurity(url);
+    
+    // Remove all existing status classes
+    statusElement.classList.remove('safe', 'warning', 'danger');
+    
+    // Update status based on threat level
+    switch(response.threatLevel) {
+        case 'danger':
+            statusElement.classList.add('danger');
+            statusElement.innerHTML = `
+                <div class="status-icon">🔴</div>
+                <div class="status-text">
+                    <h3>Danger</h3>
+                    <p>${response.message}</p>
+                </div>
+            `;
+            break;
+        case 'warning':
+            statusElement.classList.add('warning');
+            statusElement.innerHTML = `
+                <div class="status-icon">🟡</div>
+                <div class="status-text">
+                    <h3>Warning</h3>
+                    <p>${response.message}</p>
+                </div>
+            `;
+            break;
+        default:
+            statusElement.classList.add('safe');
+            statusElement.innerHTML = `
+                <div class="status-icon">🟢</div>
+                <div class="status-text">
+                    <h3>Safe</h3>
+                    <p>This website is secure</p>
+                </div>
+            `;
+    }
 }
 
-function setupEventListeners() {
-  document.getElementById('reportButton').addEventListener('click', () => {
-    alert('Reporting feature coming soon!');
-  });
-  document.getElementById('whitelistButton').addEventListener('click', () => {
-    alert('Whitelisting feature coming soon!');
-  });
-  document.getElementById('settingsButton').addEventListener('click', () => {
+async function checkUrlSecurity(url) {
+    try {
+        // Here we'll make API call to our backend for security check
+        // For now, returning mock data
+        return {
+            threatLevel: 'safe',
+            message: 'This website is secure'
+        };
+    } catch (error) {
+        console.error('Error checking URL security:', error);
+        return {
+            threatLevel: 'warning',
+            message: 'Could not verify security status'
+        };
+    }
+}
+
+async function loadStats() {
+    try {
+        const stats = await chrome.storage.local.get(['threatsBlocked', 'linksScanned']);
+        
+        document.getElementById('threats-blocked').textContent = 
+            stats.threatsBlocked || 0;
+        document.getElementById('links-scanned').textContent = 
+            stats.linksScanned || 0;
+    } catch (error) {
+        console.error('Error loading stats:', error);
+    }
+}
+
+function openSettings() {
     chrome.runtime.openOptionsPage();
-  });
-}
-
-function updateStats() {
-  // Placeholder stats
-  document.getElementById('sitesScanned').textContent = Math.floor(Math.random() * 1000);
-  document.getElementById('threatsBlocked').textContent = Math.floor(Math.random() * 100);
 } 

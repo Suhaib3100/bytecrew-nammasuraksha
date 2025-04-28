@@ -1,87 +1,86 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>NammaSuraksha - Phishing Detector</title>
-  <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8">
+    <title>NammaSuraksha Security</title>
+    <link href="styles/popup.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* Fallback styles in case external CSS fails to load */
+        body {
+            width: 350px;
+            min-height: 400px;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f9fa;
+        }
+    </style>
 </head>
 <body>
-  <div class="popup-container">
-    <header class="popup-header">
-      <img src="icons/icon.png" alt="NammaSuraksha Logo" class="logo">
-      <h1>NammaSuraksha</h1>
-      <div class="status-indicator" id="statusIndicator"></div>
-    </header>
-
-    <main class="popup-main">
-      <section class="current-status">
-        <h2>Current Page Status</h2>
-        <div class="status-card" id="currentStatus">
-          <div class="status-icon"></div>
-          <div class="status-details">
-            <h3 id="statusTitle">Analyzing...</h3>
-            <p id="statusDescription">Scanning the current page for threats</p>
-          </div>
+    <div class="container">
+        <div class="header">
+            <img src="icons/icon.png" alt="NammaSuraksha Logo" class="logo">
+            <h1>NammaSuraksha Security</h1>
         </div>
-      </section>
 
-      <section class="scan-results">
-        <h2>Scan Results</h2>
-        <div class="results-grid">
-          <div class="result-item">
-            <div class="result-icon domain"></div>
-            <span>Domain Analysis</span>
-          </div>
-          <div class="result-item">
-            <div class="result-icon ssl"></div>
-            <span>SSL Certificate</span>
-          </div>
-          <div class="result-item">
-            <div class="result-icon keywords"></div>
-            <span>Keyword Check</span>
-          </div>
-          <div class="result-item">
-            <div class="result-icon forms"></div>
-            <span>Form Analysis</span>
-          </div>
+        <div class="status-card">
+            <div class="status-header">Current Site Status</div>
+            <div id="security-status" class="status-indicator safe">
+                <div class="status-icon">🟢</div>
+                <div class="status-text">
+                    <h3>Safe</h3>
+                    <p>This website is secure</p>
+                </div>
+            </div>
         </div>
-      </section>
 
-      <section class="quick-actions">
-        <h2>Quick Actions</h2>
-        <div class="action-buttons">
-          <button id="reportButton" class="action-button">
-            <span class="icon">⚠️</span>
-            Report Phishing
-          </button>
-          <button id="whitelistButton" class="action-button">
-            <span class="icon">✅</span>
-            Whitelist Site
-          </button>
+        <div class="features-section">
+            <div class="feature-item">
+                <div class="feature-icon">🔍</div>
+                <div class="feature-text">
+                    <h3>Phishing Detection</h3>
+                    <p>AI-powered real-time scanning</p>
+                </div>
+                <div class="feature-status active">Active</div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">✉️</div>
+                <div class="feature-text">
+                    <h3>Email Protection</h3>
+                    <p>Scanning email links & senders</p>
+                </div>
+                <div class="feature-status active">Active</div>
+            </div>
+
+            <div class="feature-item">
+                <div class="feature-icon">💬</div>
+                <div class="feature-text">
+                    <h3>Social Media Protection</h3>
+                    <p>Monitoring social links & DMs</p>
+                </div>
+                <div class="feature-status active">Active</div>
+            </div>
         </div>
-      </section>
 
-      <section class="stats">
-        <h2>Protection Stats</h2>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <span class="stat-value" id="sitesScanned">0</span>
-            <span class="stat-label">Sites Scanned</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-value" id="threatsBlocked">0</span>
-            <span class="stat-label">Threats Blocked</span>
-          </div>
+        <div class="stats-section">
+            <div class="stat-item">
+                <span class="stat-number" id="threats-blocked">0</span>
+                <span class="stat-label">Threats Blocked</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="links-scanned">0</span>
+                <span class="stat-label">Links Scanned</span>
+            </div>
         </div>
-      </section>
-    </main>
 
-    <footer class="popup-footer">
-      <button id="settingsButton" class="settings-button">
-        <span class="icon">⚙️</span>
-        Settings
-      </button>
-    </footer>
-  </div>
-  <script src="popup.js"></script>
+        <div class="footer">
+            <button id="settings-btn" class="settings-button">
+                ⚙️ Settings
+            </button>
+        </div>
+    </div>
+    <script src="popup.js"></script>
 </body>
 </html> 

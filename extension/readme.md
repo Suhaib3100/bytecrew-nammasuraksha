@@ -1,72 +1,116 @@
-# Namma Suraksha Chrome Extension
+# NammaSuraksha Security Extension
 
-A Chrome extension for detecting phishing links and protecting users from malicious websites.
+A powerful Chrome extension that provides real-time protection against phishing, scams, and malicious content.
 
-## Prerequisites
+## Features
 
-- Node.js (v14 or higher)
-- npm (v6 or higher)
-- Google Chrome browser
+### 🛡️ Real-Time Phishing Detection
+- AI-powered URL analysis
+- Pattern recognition for suspicious domains
+- Protection against typosquatting attempts
+
+### 📧 Email Protection
+- Scans links in Gmail, Outlook Web, and Yahoo Mail
+- Detects spoofed sender addresses
+- Warns about suspicious attachments
+
+### 💬 Social Media Protection
+- Monitors Twitter, Facebook, WhatsApp Web, and more
+- Scans links in posts, DMs, and comments
+- Alerts on shortened URLs
+
+### 🚦 3-Level Threat System
+- 🔴 Red: Confirmed threats (blocks access)
+- 🟡 Yellow: Suspicious content (proceed with caution)
+- 🟢 Green: Verified safe
 
 ## Installation
 
-1. Clone the repository
-2. Navigate to the extension directory:
-   ```bash
-   cd extension
-   ```
-3. Install dependencies:
-   ```bash
-   npm install
-   ```
+1. Clone this repository or download the ZIP file
+2. Open Chrome and go to `chrome://extensions/`
+3. Enable "Developer mode" in the top right
+4. Click "Load unpacked" and select the extension directory
+5. The extension icon should appear in your Chrome toolbar
 
-## Building the Extension
+## Usage
 
-To build the extension, run:
-```bash
-npm run build
-```
+### Basic Protection
+- The extension runs automatically in the background
+- Click the extension icon to see the current page's security status
+- Follow the warning prompts when dangerous content is detected
 
-This will create a `dist` directory containing `nammasuraksha.zip`.
+### Email Protection
+- Works automatically with web-based email services
+- Hover over warning icons to see detailed threat information
+- Click "Proceed Anyway" to override warnings (not recommended)
 
-## Testing the Extension
-
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Enable "Developer mode" in the top right corner
-3. Click "Load unpacked" and select the `extension` directory
-4. The extension should now be installed and visible in your Chrome toolbar
+### Social Media Protection
+- Automatically scans social media feeds and messages
+- Warning overlays appear on suspicious posts and links
+- Detailed explanations provided for all security alerts
 
 ## Development
 
-- `manifest.json` - Extension configuration
-- `background.js` - Background service worker
-- `content.js` - Content script for webpage interaction
-- `popup.html` - Extension popup UI
-- `popup.js` - Popup functionality
-- `options.html` - Extension options page
-- `options.js` - Options page functionality
-- `styles.css` - Common styles
-- `build.js` - Build script for packaging the extension
+### Prerequisites
+- Node.js and npm
+- Chrome browser
+- Basic understanding of web security
 
-## Testing Checklist
+### Local Development
+1. Clone the repository
+2. Install dependencies (if any)
+3. Make your changes
+4. Test the extension locally
+5. Submit pull requests for improvements
 
-1. Install the extension
-2. Verify the extension icon appears in the toolbar
-3. Click the extension icon to verify the popup UI
-4. Visit a test website to verify content script functionality
-5. Check the extension options page
-6. Test the background service worker
-7. Verify the extension works across different websites
-8. Test the extension with different types of links
-9. Verify error handling and edge cases
-10. Test the extension's performance
+### Building for Production
+1. Update version number in manifest.json
+2. Create production build (if using build tools)
+3. Test thoroughly
+4. Package for Chrome Web Store
 
-## Troubleshooting
+## Security Features
 
-If you encounter any issues:
-1. Check the Chrome DevTools console for errors
-2. Verify all files are present in the correct locations
-3. Ensure the manifest.json is properly formatted
-4. Check that all required permissions are specified
-5. Verify the extension is properly loaded in chrome://extensions/
+### URL Analysis
+- Domain age checking
+- SSL certificate verification
+- Reputation database integration
+- Pattern matching for known threats
 
+### Email Security
+- Sender verification
+- Link scanning
+- Attachment analysis
+- Anti-spoofing protection
+
+### Social Media Protection
+- Link verification
+- Content analysis
+- Scam pattern detection
+- Real-time monitoring
+
+## Contributing
+
+We welcome contributions! Please follow these steps:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## Support
+
+For support, please:
+1. Check the documentation
+2. Search existing issues
+3. Create a new issue if needed
+
+## Acknowledgments
+
+- Thanks to all contributors
+- Special thanks to the security research community
+- Built with love for a safer internet

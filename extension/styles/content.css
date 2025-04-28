@@ -1,0 +1,118 @@
+/* Content Script Styles */
+
+/* Warning Overlays */
+.ns-warning-overlay {
+    position: relative;
+    display: inline-block;
+    z-index: 1000;
+}
+
+.ns-warning-icon {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #fff3e0;
+    border-radius: 50%;
+    padding: 2px;
+    cursor: help;
+    z-index: 1001;
+    font-size: 16px;
+    line-height: 1;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Post Warnings */
+.ns-post-warning {
+    background: #fff3e0;
+    border: 1px solid #ffb74d;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin: 8px 0;
+    font-size: 14px;
+    color: #e65100;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: ns-fade-in 0.3s ease-in-out;
+}
+
+/* Link Warnings */
+.ns-dangerous-link {
+    position: relative;
+    text-decoration: line-through;
+    color: #d32f2f !important;
+}
+
+.ns-dangerous-link::after {
+    content: '⚠️';
+    position: absolute;
+    top: -8px;
+    right: -20px;
+    font-size: 16px;
+}
+
+/* Tooltips */
+.ns-tooltip {
+    position: absolute;
+    background: #424242;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    max-width: 250px;
+    z-index: 1002;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.ns-warning-icon:hover + .ns-tooltip {
+    opacity: 1;
+}
+
+/* Animations */
+@keyframes ns-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Email-specific styles */
+.ns-email-warning {
+    border-left: 4px solid #ffb74d;
+    padding-left: 12px;
+    margin: 8px 0;
+}
+
+/* Social media specific styles */
+.ns-social-warning {
+    background: rgba(255, 243, 224, 0.9);
+    backdrop-filter: blur(4px);
+    border-radius: 8px;
+    margin: 8px 0;
+}
+
+/* Threat level indicators */
+.ns-threat-high {
+    background: #ffebee !important;
+    border-color: #ef5350 !important;
+    color: #c62828 !important;
+}
+
+.ns-threat-medium {
+    background: #fff3e0 !important;
+    border-color: #ffb74d !important;
+    color: #e65100 !important;
+}
+
+.ns-threat-low {
+    background: #e8f5e9 !important;
+    border-color: #81c784 !important;
+    color: #2e7d32 !important;
+} 
