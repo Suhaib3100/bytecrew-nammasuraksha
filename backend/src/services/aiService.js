@@ -1,11 +1,9 @@
-const { Configuration, OpenAIApi } = require('openai');
+const OpenAI = require('openai');
 require('dotenv').config();
 
-const configuration = new Configuration({
+const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
-
-const openai = new OpenAIApi(configuration);
 
 exports.analyzeContentWithAI = async (content, url) => {
   try {
@@ -19,7 +17,7 @@ Please provide a detailed analysis including:
 3. Recommendations for improvement
 4. Risk level assessment (Low/Medium/High)`;
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
@@ -36,7 +34,14 @@ Please provide a detailed analysis including:
     });
 
     return {
-      analysis: response.data.choices[0].message.content,
+      analysis: {
+        threatLevel: response.choices[0].message.content.includes('High') ? 'high' : 
+                    response.choices[0].message.content.includes('Medium') ? 'medium' : 'low',
+        recommendations: response.choices[0].message.content.split('\n').filter(line => 
+          line.includes('Recommendation') || line.includes('recommendation')
+        ),
+        detailedAnalysis: response.choices[0].message.content
+      },
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -57,7 +62,7 @@ Please provide:
 3. Explanation of findings
 4. Recommendations`;
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
@@ -74,7 +79,7 @@ Please provide:
     });
 
     return {
-      assessment: response.data.choices[0].message.content,
+      assessment: response.choices[0].message.content,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
@@ -95,7 +100,7 @@ Please include:
 4. Mitigation recommendations
 5. Risk level`;
 
-    const response = await openai.createChatCompletion({
+    const response = await openai.chat.completions.create({
       model: "gpt-4",
       messages: [
         {
@@ -112,7 +117,7 @@ Please include:
     });
 
     return {
-      report: response.data.choices[0].message.content,
+      report: response.choices[0].message.content,
       timestamp: new Date().toISOString()
     };
   } catch (error) {

@@ -1,18 +1,52 @@
 const db = require('../config/database');
 const { analyzeWebpageContent, analyzeUrl } = require('../services/analysisService');
+const { analyzeContentWithAI } = require('../services/aiService');
 
 exports.analyzeWebpage = async (req, res) => {
   try {
-    const { content, url } = req.body;
-    const analysis = await analyzeWebpageContent(content, url);
+    const { content, url, userId } = req.body;
+    
+    // Basic analysis
+    const basicAnalysis = await analyzeWebpageContent(content, url);
+    
+    // AI analysis
+    const aiAnalysis = await analyzeContentWithAI(content, url);
+    
+    // Combine analyses
+    const analysis = {
+      ...basicAnalysis,
+      aiAnalysis: {
+        threatLevel: aiAnalysis.analysis.threatLevel,
+        securityRecommendations: aiAnalysis.analysis.recommendations,
+        detailedAnalysis: aiAnalysis.analysis.detailedAnalysis
+      },
+      timestamp: new Date().toISOString()
+    };
+    
+    // Check if user exists if userId is provided
+    let validUserId = null;
+    if (userId && !isNaN(userId)) {
+      const userResult = await db.query('SELECT id FROM users WHERE id = $1', [parseInt(userId)]);
+      if (userResult.rows.length > 0) {
+        validUserId = parseInt(userId);
+      }
+    }
     
     // Save analysis to database
     await db.query(
-      'INSERT INTO analyses (url, content, result, created_at) VALUES ($1, $2, $3, NOW())',
-      [url, content, analysis]
+      'INSERT INTO analyses (url, content, result, user_id, created_at) VALUES ($1, $2, $3, $4, NOW())',
+      [url, content, analysis, validUserId]
     );
 
-    res.json({ success: true, analysis });
+    res.json({ 
+      success: true, 
+      analysis: {
+        url,
+        basicAnalysis,
+        aiAnalysis: aiAnalysis.analysis,
+        timestamp: analysis.timestamp
+      }
+    });
   } catch (error) {
     console.error('Error analyzing webpage:', error);
     res.status(500).json({ error: 'Failed to analyze webpage' });
