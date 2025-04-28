@@ -81,7 +81,7 @@ bytecrew-nammasuraksha/
 |--------------|---------------|
 | Suhaib SZ     | FullStack Developer |
 | Soniya Ukey     | Frontend Developer |
-| Noureen     | Design the API |
+| Noureen     | API Designer |
 | Mohammed Ayaan| AI Integration Specialist |
 
 ---
