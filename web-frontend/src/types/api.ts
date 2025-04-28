@@ -13,11 +13,28 @@ export interface SecurityAnalysis {
   }>;
 }
 
+export interface MessageAnalysis {
+  threatLevel: 'low' | 'medium' | 'high';
+  scamType: string;
+  indicators: Array<{
+    type: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+  suspiciousPatterns: Array<{
+    type: string;
+    description: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+}
+
 export interface AnalysisResponse {
   success: boolean;
   analysis: {
-    url: string;
-    security: SecurityAnalysis;
+    url?: string;
+    content?: string;
+    security?: SecurityAnalysis;
+    message?: MessageAnalysis;
     recommendations: string[];
     summary: string;
     timestamp: string;

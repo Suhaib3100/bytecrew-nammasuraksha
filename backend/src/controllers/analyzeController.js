@@ -12,14 +12,17 @@ exports.analyzeWebpage = async (req, res) => {
     // AI analysis
     const aiAnalysis = await analyzeContentWithAI(content, url);
     
-    // Combine analyses
+    // Combine analyses into a concise format
     const analysis = {
-      ...basicAnalysis,
-      aiAnalysis: {
-        threatLevel: aiAnalysis.analysis.threatLevel,
-        securityRecommendations: aiAnalysis.analysis.recommendations,
-        detailedAnalysis: aiAnalysis.analysis.detailedAnalysis
+      url,
+      security: {
+        threatLevel: aiAnalysis.threatLevel,
+        isSecure: basicAnalysis.urlAnalysis.isSecure,
+        threats: aiAnalysis.threats,
+        suspiciousPatterns: aiAnalysis.suspiciousPatterns
       },
+      recommendations: aiAnalysis.recommendations,
+      summary: aiAnalysis.summary,
       timestamp: new Date().toISOString()
     };
     
@@ -40,16 +43,15 @@ exports.analyzeWebpage = async (req, res) => {
 
     res.json({ 
       success: true, 
-      analysis: {
-        url,
-        basicAnalysis,
-        aiAnalysis: aiAnalysis.analysis,
-        timestamp: analysis.timestamp
-      }
+      analysis
     });
   } catch (error) {
     console.error('Error analyzing webpage:', error);
-    res.status(500).json({ error: 'Failed to analyze webpage' });
+    res.status(500).json({ 
+      success: false,
+      error: 'Failed to analyze webpage',
+      details: error.message 
+    });
   }
 };
 
