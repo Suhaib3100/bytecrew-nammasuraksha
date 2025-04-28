@@ -21,10 +21,10 @@ This project will offer:
 
 | Module             | Status            |
 |--------------------|-------------------|
-| Backend (Express.js + Prisma + PostgreSQL) | 🔄 Setting up base structure |
-| Web Frontend (Next.js + TailwindCSS)        | 🔄 Initial screens ready |
-| Mobile App (React Native Expo)              | 🔄 Navigation setup ongoing |
-| Chrome Extension (Manifest V3)              | 🔄 Planning stage |
+| Backend (Express.js + Prisma + PostgreSQL) | ✅ Completed for web and extension |
+| Web Frontend (Next.js + TailwindCSS)        | ✅ Completed the dashboard |
+| Chrome Extension (Manifest V3)              | ✅  Done |
+| Mobile App (React Native Expo)              | 🔄 Soon |
 
 _(Status table will be updated as modules progress.)_
 
