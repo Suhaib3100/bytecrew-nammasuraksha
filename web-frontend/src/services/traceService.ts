@@ -86,7 +86,7 @@ export async function traceUrl(url: string, emailHeaders?: string): Promise<Trac
         }
       },
       hostingInfo: {
-        provider: 'Unknown',
+        provider: urlObj.hostname,
         location: {
           country: 'Unknown',
         }
