@@ -46,6 +46,133 @@ function scanEmailContent() {
     scanSenderAddresses();
 }
 
+async function checkUrl(url) {
+    try {
+        // Increase timeout and add retry logic
+        const maxRetries = 3;
+        const timeout = 10000; // 10 seconds
+        
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                const response = await new Promise((resolve, reject) => {
+                    const timeoutId = setTimeout(() => {
+                        reject(new Error(`Request timed out after ${timeout}ms`));
+                    }, timeout);
+
+                    chrome.runtime.sendMessage(
+                        { 
+                            type: "checkUrl", 
+                            url: url,
+                            attempt: attempt 
+                        },
+                        (response) => {
+                            clearTimeout(timeoutId);
+                            if (chrome.runtime.lastError) {
+                                reject(chrome.runtime.lastError);
+                            } else {
+                                resolve(response);
+                            }
+                        }
+                    );
+                });
+
+                if (!response || typeof response !== 'object') {
+                    throw new Error('Invalid response format');
+                }
+
+                return response;
+            } catch (retryError) {
+                if (attempt === maxRetries) {
+                    throw retryError;
+                }
+                // Wait before retrying
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
+    } catch (error) {
+        console.warn('URL check failed:', error.message);
+        return { 
+            threatLevel: 'unknown', 
+            message: 'Could not verify link safety',
+            error: error.message 
+        };
+    }
+}
+
+async function scanLink(element) {
+    if (processedElements.has(element)) return;
+    
+    processedElements.add(element);
+    element.setAttribute('data-scanned', 'true');
+    
+    const url = element.href;
+    if (!url) return;
+    
+    try {
+        if (isShortenedUrl(url)) {
+            addWarningOverlay(element, 'Shortened URL detected. Click to verify destination.');
+            return;
+        }
+
+        const result = await checkUrl(url);
+        if (result.threatLevel !== 'safe') {
+            addWarningOverlay(element, result.message);
+        }
+    } catch (error) {
+        console.warn('Error scanning link:', error);
+    }
+}
+
+async function scanPage() {
+    const links = document.querySelectorAll('a[href]:not([data-scanned])');
+    const senderElements = [
+        ...document.querySelectorAll('.gD'),
+        ...document.querySelectorAll('.EPt5Dd'),
+        ...document.querySelectorAll('.from_name')
+    ];
+
+    // Scan links
+    for (const link of links) {
+        await scanLink(link);
+    }
+
+    // Check senders
+    senderElements.forEach(element => {
+        if (!processedElements.has(element)) {
+            processedElements.add(element);
+            const address = element.textContent.trim();
+            if (isSuspiciousEmail(address)) {
+                addWarningOverlay(element, 'Potentially spoofed sender address');
+            }
+        }
+    });
+}
+
+function initializeScanner() {
+    try {
+        scanPage();
+        
+        // Set up mutation observer
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                if (mutation.addedNodes.length) {
+                    scanPage();
+                }
+            });
+        });
+
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+
+        // Periodic scan with proper interval handling
+        setInterval(scanPage, 2000);
+    } catch (error) {
+        console.error('Error initializing scanner:', error);
+    }
+}
+
 function scanLinks() {
     const links = document.querySelectorAll('a[href]:not([data-scanned])');
     
@@ -66,10 +193,7 @@ function scanLinks() {
             }
 
             // Send URL to background script for checking
-            const response = await chrome.runtime.sendMessage({
-                type: 'checkUrl',
-                url: url
-            });
+            const response = await checkUrl(url);
 
             if (response.threatLevel !== 'safe') {
                 addWarningOverlay(link, response.message);

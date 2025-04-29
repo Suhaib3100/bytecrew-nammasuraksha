@@ -17,10 +17,15 @@ function connectToBackground() {
 function handleMessage(message) {
     if (message.type === 'ANALYSIS_STATUS') {
         updateThreatStatus(message.data);
+        updateGuaranteeStatus(message.data);
     } else if (message.type === 'ANALYSIS_COMPLETE') {
         updateThreatStatus(message.data);
+        updateGuaranteeStatus(message.data);
         updateAnalysisDetails(message.data);
         updateStats(message.data);
+        
+        // Show notification popup
+        showNotificationPopup(message.data);
         
         // Enable refresh button
         const refreshButton = document.getElementById('refreshAnalysis');
@@ -257,6 +262,87 @@ function updateAnalysisResults(results) {
     }
 }
 
+function updateGuaranteeStatus(analysis) {
+    const guaranteeStatus = document.querySelector('.guarantee-status');
+    const guaranteeMessage = guaranteeStatus.querySelector('.guarantee-message');
+    const verifyItems = guaranteeStatus.querySelectorAll('.verify-item');
+    
+    // Remove all states first
+    guaranteeStatus.classList.remove('analyzing', 'not-genuine');
+    
+    if (analysis.type === 'ANALYZING') {
+        guaranteeStatus.classList.add('analyzing');
+        guaranteeMessage.textContent = 'Analyzing Website...';
+        verifyItems.forEach(item => {
+            const icon = item.querySelector('.verify-icon');
+            icon.textContent = '↻';
+        });
+        return;
+    }
+    
+    const isGenuine = analysis.threatLevel === 'low' && 
+                      analysis.details?.checks?.every(check => check.status !== 'danger');
+    
+    if (isGenuine) {
+        guaranteeMessage.textContent = 'Guaranteed Genuine';
+        verifyItems.forEach(item => {
+            const icon = item.querySelector('.verify-icon');
+            icon.textContent = '✓';
+        });
+    } else {
+        guaranteeStatus.classList.add('not-genuine');
+        guaranteeMessage.textContent = 'Not Verified';
+        verifyItems.forEach(item => {
+            const icon = item.querySelector('.verify-icon');
+            icon.textContent = '×';
+        });
+    }
+    
+    // Update verification details
+    const [domainVerify, sslVerify, threatVerify] = verifyItems;
+    
+    if (analysis.details?.checks) {
+        const domainCheck = analysis.details.checks.find(c => c.type.includes('domain'));
+        const sslCheck = analysis.details.checks.find(c => c.type.includes('ssl'));
+        
+        domainVerify.querySelector('.verify-text').textContent = 
+            domainCheck?.status === 'safe' ? 'Domain Verified' : 'Domain Not Verified';
+        
+        sslVerify.querySelector('.verify-text').textContent = 
+            sslCheck?.status === 'safe' ? 'SSL Secure' : 'SSL Not Secure';
+        
+        threatVerify.querySelector('.verify-text').textContent = 
+            isGenuine ? 'No Threats Detected' : 'Threats Detected';
+    }
+}
+
+function showNotificationPopup(analysis) {
+    const isGenuine = analysis.threatLevel === 'low' && 
+                     analysis.details?.checks?.every(check => check.status !== 'danger');
+    
+    const popupUrl = isGenuine ? 'safe.html' : 'warning.html';
+    
+    // Store the analysis details for the popup
+    chrome.storage.local.set({
+        'lastAnalysis': {
+            url: currentTab.url,
+            result: analysis,
+            timestamp: Date.now()
+        }
+    }, () => {
+        // Create the popup window
+        chrome.windows.create({
+            url: chrome.runtime.getURL(popupUrl),
+            type: 'popup',
+            width: 400,
+            height: 300,
+            focused: true
+        }).catch(error => {
+            console.error('Error showing notification popup:', error);
+        });
+    });
+}
+
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -307,4 +393,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             message: 'Failed to initialize'
         });
     }
-}); 
+});

@@ -9,6 +9,7 @@
     --color-background: #FFFFFF;
     --color-border: #E0E0E0;
     --color-genuine: #00C853;
+    --color-highlight: #E8F5E9;
     --border-radius: 8px;
     --spacing-unit: 8px;
 }
@@ -39,9 +40,16 @@ body {
 }
 
 /* Status card styles */
+.status-container {
+    margin-bottom: 20px;
+}
+
 .status-card {
-    background: #F5F5F5;
-    border-radius: var(--border-radius);
+    background: linear-gradient(to right, var(--color-highlight), white);
+    border: 1px solid var(--color-border);
+    border-left: 4px solid var(--color-safe);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
     padding: 16px;
     margin-bottom: 16px;
     display: flex;
@@ -49,43 +57,50 @@ body {
     gap: 12px;
 }
 
-.status-card.safe { background-color: #E8F5E9; }
-.status-card.warning { background-color: #FFF3E0; }
-.status-card.danger { background-color: #FFEBEE; }
-.status-card.unknown { background-color: #F5F5F5; }
-.status-card.error { background-color: #FFEBEE; }
-.status-card.analyzing {
-    background-color: #E3F2FD;
-    border-color: #2196F3;
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.status-header {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--color-text);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.status-indicator {
+    display: flex;
+    align-items: center;
+    gap: 16px;
 }
 
 .status-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    background: var(--color-safe);
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.status-icon.safe::before { content: '✓'; color: var(--color-safe); }
-.status-icon.warning::before { content: '!'; color: var(--color-warning); }
-.status-icon.danger::before { content: '⚠'; color: var(--color-danger); }
-.status-icon.unknown::before { content: '?'; color: var(--color-unknown); }
-.status-icon.error::before { content: '×'; color: var(--color-error); }
-.status-icon.analyzing {
-    background-image: url('icons/analyzing.svg');
-}
-
-.status-content {
-    flex: 1;
-}
-
-#threatLevel {
+.status-content h3 {
+    font-size: 20px;
     font-weight: 600;
-    margin: 0 0 4px 0;
+    margin: 0 0 8px 0;
+    color: var(--color-text);
 }
 
-#statusMessage {
+.status-content p {
+    font-size: 16px;
+    color: #666;
     margin: 0;
-    font-size: 14px;
 }
 
 /* Analysis details section */
@@ -296,56 +311,69 @@ button {
 }
 
 .check-item {
-    display: flex;
-    flex-direction: column;
-    padding: 8px;
-    margin: 5px 0;
-    border-radius: 4px;
-    border-left: 4px solid transparent;
+    background: white;
+    border: 1px solid var(--color-border);
+    border-radius: var(--border-radius);
+    padding: 12px 16px;
+    margin: 8px 0;
+    transition: all 0.3s ease;
 }
 
-.check-item.safe {
-    background-color: #E8F5E9;
-    border-left-color: #4CAF50;
-}
-
-.check-item.warning {
-    background-color: #FFF3E0;
-    border-left-color: #FFC107;
-}
-
-.check-item.danger {
-    background-color: #FFEBEE;
-    border-left-color: #F44336;
+.check-item:hover {
+    transform: translateX(4px);
+    border-left-width: 6px;
 }
 
 .check-type {
-    font-weight: bold;
+    font-size: 14px;
+    font-weight: 600;
     text-transform: uppercase;
-    font-size: 0.8em;
-    color: #666;
-    margin-bottom: 4px;
+    letter-spacing: 0.5px;
+    color: #555;
+    margin-bottom: 6px;
 }
 
 .check-message {
-    color: #333;
+    font-size: 15px;
+    line-height: 1.5;
+    color: var(--color-text);
 }
 
-/* Status Icons */
-.status-icon.low {
-    background-image: url('icons/check.svg');
+/* Status Variations */
+.status-card.safe {
+    background: linear-gradient(to right, #E8F5E9, white);
+    border-left-color: var(--color-safe);
 }
 
-.status-icon.medium {
-    background-image: url('icons/warning.svg');
+.status-card.warning {
+    background: linear-gradient(to right, #FFF3E0, white);
+    border-left-color: var(--color-warning);
 }
 
-.status-icon.high {
-    background-image: url('icons/danger.svg');
+.status-card.danger {
+    background: linear-gradient(to right, #FFEBEE, white);
+    border-left-color: var(--color-danger);
 }
 
-.status-icon.error {
-    background-image: url('icons/error.svg');
+.status-card.analyzing {
+    background: linear-gradient(to right, #E3F2FD, white);
+    border-left-color: #2196F3;
+}
+
+/* Check Item Status */
+.check-item.safe {
+    border-left: 4px solid var(--color-safe);
+    background: linear-gradient(to right, #E8F5E9, white);
+}
+
+.check-item.warning {
+    border-left: 4px solid var(--color-warning);
+    background: linear-gradient(to right, #FFF3E0, white);
+}
+
+.check-item.danger {
+    border-left: 4px solid var(--color-danger);
+    background: linear-gradient(to right, #FFEBEE, white);
 }
 
 /* Stats Section */
@@ -541,13 +569,20 @@ button {
 
 /* Guarantee Status Section */
 .guarantee-status {
-    background: #F8FFF9;
-    border: 1px solid var(--color-genuine);
-    border-radius: var(--border-radius);
+    background: linear-gradient(135deg, #F8FFF9, white);
+    border: 2px solid var(--color-genuine);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transform: translateY(0);
+    transition: all 0.3s ease;
     padding: 16px;
     margin: 16px 0;
     position: relative;
     overflow: hidden;
+}
+
+.guarantee-status:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .guarantee-status::before {
@@ -561,80 +596,46 @@ button {
 }
 
 .guarantee-badge {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    margin-bottom: 12px;
+    position: relative;
+    padding: 16px;
+    background: rgba(255, 255, 255, 0.9);
+    border-radius: var(--border-radius);
 }
 
 .guarantee-icon {
-    width: 32px;
-    height: 32px;
-    background: var(--color-genuine);
-    border-radius: 50%;
-    position: relative;
-}
-
-.guarantee-icon::before {
-    content: '✓';
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    color: white;
-    font-size: 20px;
-    font-weight: bold;
-}
-
-.guarantee-content {
-    flex: 1;
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .guarantee-title {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--color-text);
+    font-size: 18px;
+    margin-bottom: 4px;
 }
 
 .guarantee-message {
-    margin: 4px 0 0;
-    font-size: 14px;
-    color: var(--color-genuine);
-    font-weight: 500;
-}
-
-.verification-details {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 8px;
-    margin-top: 12px;
-    padding-top: 12px;
-    border-top: 1px solid #E8F5E9;
+    font-size: 16px;
+    font-weight: 600;
 }
 
 .verify-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--color-text);
+    background: white;
+    padding: 10px;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s ease;
+}
+
+.verify-item:hover {
+    transform: translateX(4px);
 }
 
 .verify-icon {
-    width: 16px;
-    height: 16px;
-    background: var(--color-genuine);
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: 12px;
-}
-
-.verify-text {
-    font-weight: 500;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 /* Not Genuine State */
@@ -679,7 +680,7 @@ button {
 
 .guarantee-status.analyzing .guarantee-icon {
     background: #2196F3;
-    animation: spin 1.5s linear infinite;
+    animation: spin 1.5s linear infinite, pulse 2s ease infinite;
 }
 
 .guarantee-status.analyzing .guarantee-icon::before {
@@ -688,4 +689,28 @@ button {
 
 .guarantee-status.analyzing .guarantee-message {
     color: #2196F3;
+}
+
+/* Animation Enhancements */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.status-card.analyzing .status-icon {
+    animation: spin 1.5s linear infinite, pulse 2s ease infinite;
+}
+
+.guarantee-status.analyzing .guarantee-icon {
+    animation: spin 1.5s linear infinite, pulse 2s ease infinite;
+}
+
+.verification-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #E8F5E9;
 } 

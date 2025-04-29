@@ -98,18 +98,37 @@
         </div>
 
         <div class="stats-section">
-            <div class="stat-card">
-                <span class="stat-number" id="threats-blocked">0</span>
-                <span class="stat-label">Threats Blocked</span>
+            <div class="stat-card" data-stat="threats">
+                <div class="stat-icon">🛡️</div>
+                <div class="stat-content">
+                    <span class="stat-number" id="threats-blocked">0</span>
+                    <span class="stat-label">Threats Blocked</span>
+                </div>
             </div>
-            <div class="stat-card">
-                <span class="stat-number" id="links-scanned">0</span>
-                <span class="stat-label">Links Scanned</span>
+            <div class="stat-card" data-stat="links">
+                <div class="stat-icon">🔗</div>
+                <div class="stat-content">
+                    <span class="stat-number" id="links-scanned">0</span>
+                    <span class="stat-label">Links Scanned</span>
+                </div>
+            </div>
+            <div class="stat-card" data-stat="safety">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <span class="stat-number" id="safety-score">100%</span>
+                    <span class="stat-label">Safety Score</span>
+                </div>
             </div>
         </div>
 
         <div id="analysisDetails" class="details-section">
-            <h2>Detailed Analysis</h2>
+            <div class="section-header">
+                <h2>Detailed Analysis</h2>
+                <div class="status-badge" id="overall-status">
+                    <span class="status-icon">🔄</span>
+                    <span class="status-text">Analyzing</span>
+                </div>
+            </div>
             <div class="analysis-content">
                 <div class="analysis-group">
                     <h3>Detected Threats</h3>
@@ -147,4 +166,4 @@
     </div>
     <script src="popup.js"></script>
 </body>
-</html> 
+</html>

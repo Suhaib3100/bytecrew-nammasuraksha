@@ -609,4 +609,49 @@ function sendMessage(message) {
     } catch (error) {
         console.error('Error sending message:', error);
     }
+}
+
+async function analyzeDomain(domain) {
+    try {
+        const response = await fetch('http://localhost:3001/api/quick/domain/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ domain })
+        });
+
+        if (!response.ok) {
+            throw new Error('Domain analysis failed');
+        }
+
+        const data = await response.json();
+        
+        if (!data.success) {
+            throw new Error(data.error || 'Analysis failed');
+        }
+
+        return {
+            threatLevel: data.analysis.threatLevel,
+            confidence: data.analysis.confidence,
+            message: data.analysis.reasons.join('. '),
+            details: {
+                domain: data.analysis.domain,
+                checks: [
+                    {
+                        type: 'domain',
+                        status: data.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
+                        message: data.analysis.reasons[0] || 'Domain analysis complete'
+                    }
+                ]
+            }
+        };
+    } catch (error) {
+        console.error('Domain analysis error:', error);
+        return {
+            threatLevel: 'error',
+            message: 'Failed to analyze domain',
+            error: error.message
+        };
+    }
 } 

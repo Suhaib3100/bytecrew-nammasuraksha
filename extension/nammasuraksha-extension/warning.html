@@ -1,94 +1,138 @@
 <!doctype html><html><head><meta charset="UTF-8"><title>Security Warning - NammaSuraksha</title><style>body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             margin: 0;
-            padding: 0;
-            min-height: 100vh;
-            background: #fee;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .container {
-            max-width: 600px;
-            padding: 40px;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FFEBEE;
+            color: #C62828;
             text-align: center;
         }
-
-        .warning-icon {
-            font-size: 64px;
-            margin-bottom: 20px;
-        }
-
-        h1 {
-            color: #d32f2f;
-            margin-bottom: 20px;
-        }
-
-        .url-display {
-            background: rgba(0, 0, 0, 0.05);
-            padding: 12px;
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
             border-radius: 8px;
-            word-break: break-all;
-            margin: 20px 0;
-            font-family: monospace;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-
-        .description {
-            color: #333;
-            line-height: 1.6;
-            margin-bottom: 30px;
+        
+        .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
         }
-
-        .buttons {
+        
+        h1 {
+            margin: 0 0 16px;
+            font-size: 24px;
+        }
+        
+        p {
+            margin: 8px 0;
+            color: #D32F2F;
+        }
+        
+        .details {
+            margin-top: 20px;
+            text-align: left;
+            padding: 16px;
+            background: #FFEBEE;
+            border-radius: 4px;
+        }
+        
+        .warning-item {
             display: flex;
-            gap: 16px;
+            align-items: flex-start;
+            margin: 12px 0;
+            padding: 8px;
+            background: rgba(255, 0, 0, 0.05);
+            border-radius: 4px;
+        }
+        
+        .warning-icon {
+            margin-right: 8px;
+            color: #D32F2F;
+        }
+        
+        .warning-text {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .buttons {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
             justify-content: center;
         }
-
-        button {
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .back-button {
-            background: #f5f5f5;
-            color: #333;
-        }
-
+        
         .proceed-button {
-            background: #d32f2f;
+            padding: 8px 16px;
+            background: #D32F2F;
             color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .close-button {
+            padding: 8px 16px;
+            background: #9E9E9E;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            opacity: 0.9;
+        }</style></head><body><div class="container"><div class="icon">⚠️</div><h1>Security Warning</h1><p>Potential security risks detected on this website</p><div class="details" id="warning-details"></div><div class="buttons"><button class="proceed-button" onclick="proceedAnyway()">Proceed Anyway</button> <button class="close-button" onclick="window.close()">Go Back</button></div></div><script>function proceedAnyway() {
+            if (confirm('Are you sure you want to proceed? This website may be unsafe.')) {
+                window.close();
+            }
         }
 
-        .back-button:hover {
-            background: #e0e0e0;
-        }
-
-        .proceed-button:hover {
-            background: #b71c1c;
-        }</style></head><body><div class="container"><div class="warning-icon">⚠️</div><h1>Security Warning</h1><div class="url-display" id="dangerous-url"></div><p class="description">This website has been identified as potentially dangerous by NammaSuraksha Security. It may be attempting to steal your personal information through phishing or contain malware.</p><div class="buttons"><button class="back-button" id="backButton">Go Back (Safe)</button> <button class="proceed-button" id="proceedButton">Proceed Anyway (Risky)</button></div></div><script>document.addEventListener('DOMContentLoaded', () => {
-            // Get the dangerous URL from query parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const dangerousUrl = urlParams.get('url');
-            
-            // Display the URL
-            document.getElementById('dangerous-url').textContent = dangerousUrl;
-
-            // Handle back button
-            document.getElementById('backButton').addEventListener('click', () => {
-                window.history.back();
-            });
-
-            // Handle proceed button
-            document.getElementById('proceedButton').addEventListener('click', () => {
-                if (confirm('Are you sure you want to proceed to this potentially dangerous website?')) {
-                    window.location.href = dangerousUrl;
+        // Get analysis details from storage and display warnings
+        chrome.storage.local.get(['lastAnalysis'], function(data) {
+            if (data.lastAnalysis) {
+                const analysis = data.lastAnalysis;
+                document.querySelector('p').textContent = 
+                    `Security risks detected on ${analysis.url}`;
+                
+                const detailsContainer = document.getElementById('warning-details');
+                
+                // Display security checks that failed
+                if (analysis.result.details?.checks) {
+                    analysis.result.details.checks.forEach(check => {
+                        if (check.status === 'danger' || check.status === 'warning') {
+                            const warningItem = document.createElement('div');
+                            warningItem.className = 'warning-item';
+                            warningItem.innerHTML = `
+                                <span class="warning-icon">⚠️</span>
+                                <div class="warning-text">
+                                    <strong>${check.type}</strong><br>
+                                    ${check.message}
+                                </div>
+                            `;
+                            detailsContainer.appendChild(warningItem);
+                        }
+                    });
                 }
-            });
+                
+                // If no specific checks failed, show general warning
+                if (detailsContainer.children.length === 0) {
+                    const warningItem = document.createElement('div');
+                    warningItem.className = 'warning-item';
+                    warningItem.innerHTML = `
+                        <span class="warning-icon">⚠️</span>
+                        <div class="warning-text">
+                            This website has not passed our security verification.
+                            Please proceed with caution.
+                        </div>
+                    `;
+                    detailsContainer.appendChild(warningItem);
+                }
+            }
         });</script></body></html>
