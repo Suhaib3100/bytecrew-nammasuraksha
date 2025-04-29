@@ -1,18 +1,17 @@
 {
   "manifest_version": 3,
-  "name": "NammaSuraksha Phishing Protector",
+  "name": "NammaSuraksha Security Extension",
   "version": "1.0",
-  "description": "Protects users from phishing websites by checking URLs against NammaSuraksha's security database",
+  "description": "Protects users from phishing and malicious websites",
   "permissions": [
     "webNavigation",
-    "webRequest",
     "tabs",
-    "storage"
+    "activeTab",
+    "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3001/*",
-    "*://*.appspot.com/*",
-    "<all_urls>"
+    "http://*/*",
+    "https://*/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -33,7 +32,8 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ]
 } 

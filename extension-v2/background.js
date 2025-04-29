@@ -41,7 +41,6 @@ async function checkUrl(url) {
   console.log('Checking URL:', url);
 
   try {
-    // Always try the SafeBrowsing API first
     const response = await fetch(`${API_URL}/safebrowsing/check-url`, {
       method: 'POST',
       headers: {
@@ -51,12 +50,11 @@ async function checkUrl(url) {
       body: JSON.stringify({ 
         url,
         context: {
-          referrer: document.referrer,
           timestamp: new Date().toISOString()
         }
-      }),
+      })
     });
-    
+
     if (!response.ok) {
       console.error('API Error:', response.status, response.statusText);
       // Fallback to known bad URLs only if API fails
@@ -68,7 +66,7 @@ async function checkUrl(url) {
 
     const result = await response.json();
     console.log('SafeBrowsing API Response:', result);
-    
+
     // Handle the specific API response format
     if (result.success && result.analysis) {
       if (result.analysis.isMalicious) {
@@ -89,8 +87,8 @@ async function checkUrl(url) {
         };
       }
     }
-    
-    // Check for suspicious patterns if API doesn't detect threats
+
+    // Check for suspicious patterns
     const urlObj = new URL(url);
     const suspiciousPatterns = [
       { pattern: /^[0-9.]+$/, type: 'IP_ADDRESS' },
@@ -116,7 +114,7 @@ async function checkUrl(url) {
         details: suspiciousMatches
       };
     }
-    
+
     return {
       isPhishing: false,
       source: null,

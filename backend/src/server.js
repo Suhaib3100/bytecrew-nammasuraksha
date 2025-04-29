@@ -17,7 +17,7 @@ const safeBrowsingRoutes = require('./routes/safeBrowsing');
 
 const app = express();
 
-// CORS configuration for Expo development
+// CORS configuration for Expo development and Chrome extension
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -27,6 +27,7 @@ const corsOptions = {
       'http://localhost:3000',
       'http://localhost:8081',
       'http://localhost:19006', // Expo web
+      /^chrome-extension:\/\/.*$/, // Chrome extensions
       /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
       /^http:\/\/172\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
       /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
@@ -42,11 +43,12 @@ const corsOptions = {
     if (isAllowed) {
       callback(null, true);
     } else {
+      console.warn('CORS blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   credentials: true,
 };
 
