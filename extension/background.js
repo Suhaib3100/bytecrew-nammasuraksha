@@ -1,11 +1,33 @@
-import ApiService from './services/api';
-
 // Constants for API endpoints
 const API_ENDPOINT = 'http://localhost:3001/api';
 
 // Cache for analysis results
 const analysisCache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// API Service functions
+const ApiService = {
+    async analyzeContent(content, type) {
+        try {
+            const response = await fetch(`${API_ENDPOINT}/analyze/${type.toLowerCase()}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ content })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            return await response.json();
+        } catch (error) {
+            console.error(`Error analyzing ${type} content:`, error);
+            throw error;
+        }
+    }
+};
 
 // Initialize extension
 chrome.runtime.onInstalled.addListener(() => {
@@ -407,6 +429,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         handleGetAnalysis(message.tabId);
     } else if (message.type === 'REFRESH_ANALYSIS') {
         handleRefreshAnalysis(message.tabId);
+    } else if (message.type === 'GET_SAFETY_CHECK') {
+        checkUrlSafety(message.url).then(sendResponse);
+        return true; // Will respond asynchronously
     }
     return true;
 });
@@ -485,10 +510,25 @@ async function handleRefreshAnalysis(tabId) {
     }
 }
 
-// Function to check URL with both VirusTotal and Safe Browsing
+// Function to check URL with domain analysis and Safe Browsing
 async function checkUrl(url) {
     try {
-        // Check with Google Safe Browsing first (faster response)
+        // First, check with our domain analysis
+        const domainResponse = await fetch('http://localhost:3001/api/quick/domain/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ domain: new URL(url).hostname })
+        });
+
+        if (!domainResponse.ok) {
+            throw new Error('Domain analysis failed');
+        }
+
+        const domainData = await domainResponse.json();
+        
+        // Then check with Google Safe Browsing
         const safeBrowsingResponse = await fetch('http://localhost:3001/api/safebrowsing/check-url', {
             method: 'POST',
             headers: {
@@ -502,78 +542,44 @@ async function checkUrl(url) {
         }
 
         const safeBrowsingData = await safeBrowsingResponse.json();
-        
-        // If Google Safe Browsing detects a threat, prepare detailed response
-        if (safeBrowsingData.success && safeBrowsingData.analysis.isMalicious) {
-            const threatDetails = {
-                threatLevel: safeBrowsingData.analysis.threatLevel || 'high',
-                confidence: 0.9,
-                message: `Google Safe Browsing Warning: ${safeBrowsingData.analysis.details.threatTypes.join(', ')}`,
-                details: {
-                    source: 'Google Safe Browsing',
-                    threats: safeBrowsingData.analysis.threats,
-                    affectedPlatforms: safeBrowsingData.analysis.details.affectedPlatforms,
-                    totalThreats: safeBrowsingData.analysis.details.totalThreats,
-                    recommendations: safeBrowsingData.analysis.recommendations || [],
-                    checks: [{
-                        type: 'safebrowsing',
-                        status: 'danger',
-                        message: 'Site flagged as malicious by Google Safe Browsing'
-                    }]
-                }
-            };
 
-            // Show immediate warning notification
-            chrome.notifications.create({
-                type: 'basic',
-                iconUrl: 'icons/warning-48.png',
-                title: 'Security Alert!',
-                message: threatDetails.message
-            });
+        // Combine results for final analysis
+        const finalThreatLevel = combineThreatLevels([
+            domainData.analysis.threatLevel,
+            safeBrowsingData.analysis.isMalicious ? 'high' : 'safe'
+        ]);
 
-            return threatDetails;
-        }
-
-        // Then check with VirusTotal for additional context
-        const vtResponse = await fetch('http://localhost:3001/api/virustotal/analyze-url', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ url })
-        });
-
-        if (!vtResponse.ok) {
-            throw new Error('VirusTotal analysis failed');
-        }
-
-        const vtData = await vtResponse.json();
-
-        // Combine the results
-        const analysis = vtData.analysis;
-        analysis.details.safeBrowsing = {
-            checked: true,
-            result: safeBrowsingData.analysis,
-            timestamp: safeBrowsingData.analysis.timestamp
-        };
-
-        // Update threat level based on combined results
-        if (safeBrowsingData.analysis.isMalicious) {
-            analysis.threatLevel = Math.max(
-                getThreatLevelValue(analysis.threatLevel),
-                getThreatLevelValue(safeBrowsingData.analysis.threatLevel)
-            );
-            analysis.confidence = Math.max(analysis.confidence, 0.9);
-        }
-
-        // Add combined recommendations
-        analysis.recommendations = [
-            ...(analysis.recommendations || []),
+        const reasons = [
+            ...(domainData.analysis.reasons || []),
             ...(safeBrowsingData.analysis.recommendations || [])
         ];
 
-        return analysis;
-
+        return {
+            threatLevel: finalThreatLevel,
+            confidence: Math.max(
+                parseFloat(domainData.analysis.confidence || 0),
+                safeBrowsingData.analysis.isMalicious ? 0.9 : 0
+            ),
+            message: reasons.join('. '),
+            details: {
+                domain: new URL(url).hostname,
+                checks: [
+                    {
+                        type: 'domain',
+                        status: domainData.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
+                        message: domainData.analysis.reasons[0] || 'Domain analysis complete'
+                    },
+                    {
+                        type: 'safebrowsing',
+                        status: safeBrowsingData.analysis.isMalicious ? 'danger' : 'safe',
+                        message: safeBrowsingData.analysis.isMalicious ? 
+                            `Google Safe Browsing: ${safeBrowsingData.analysis.details.threatTypes.join(', ')}` :
+                            'No threats detected by Google Safe Browsing'
+                    }
+                ],
+                safeBrowsing: safeBrowsingData.analysis.details
+            }
+        };
     } catch (error) {
         console.error('URL check error:', error);
         return {
@@ -584,15 +590,11 @@ async function checkUrl(url) {
     }
 }
 
-// Helper function to convert threat level to numeric value
-function getThreatLevelValue(level) {
-    const levels = {
-        'safe': 0,
-        'low': 1,
-        'medium': 2,
-        'high': 3
-    };
-    return levels[level] || 0;
+// Helper function to combine multiple threat levels
+function combineThreatLevels(levels) {
+    const threatLevels = ['safe', 'low', 'medium', 'high'];
+    const maxIndex = Math.max(...levels.map(level => threatLevels.indexOf(level)));
+    return threatLevels[maxIndex];
 }
 
 // Update badge based on combined analysis
@@ -912,25 +914,14 @@ async function analyzeDomain(domain) {
     }
 }
 
-async function checkUrl(url) {
+// Function to check URL safety
+async function checkUrlSafety(url) {
     try {
-        // First, check with our domain analysis
-        const domainResponse = await fetch('http://localhost:3001/api/quick/domain/analyze', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ domain: new URL(url).hostname })
-        });
+        // Update badge immediately to show checking status
+        updateBadge('⌛', '#FFA500'); // Orange color for checking
 
-        if (!domainResponse.ok) {
-            throw new Error('Domain analysis failed');
-        }
-
-        const domainData = await domainResponse.json();
-        
-        // Then, check with VirusTotal
-        const vtResponse = await fetch('http://localhost:3001/api/virustotal/analyze-url', {
+        // First check with Google Safe Browsing API
+        const safeBrowsingResponse = await fetch('http://localhost:3001/api/safebrowsing/check-url', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -938,68 +929,65 @@ async function checkUrl(url) {
             body: JSON.stringify({ url })
         });
 
-        if (!vtResponse.ok) {
-            throw new Error('VirusTotal analysis failed');
+        const safeBrowsingResult = await safeBrowsingResponse.json();
+        
+        // Immediately update UI based on Safe Browsing result
+        if (safeBrowsingResult.matches) {
+            // Threat found by Google Safe Browsing
+            updateBadge('⚠️', '#FF0000');
+            showNotification('Security Alert', `Warning: This site has been flagged as ${safeBrowsingResult.matches[0].threatType}`);
+            return {
+                type: 'ANALYSIS_COMPLETE',
+                threatLevel: 'high',
+                message: 'Dangerous site detected',
+                details: {
+                    checkedBy: 'Google Safe Browsing',
+                    threatTypes: safeBrowsingResult.matches.map(match => match.threatType),
+                    timestamp: new Date().toISOString()
+                }
+            };
         }
 
-        const vtData = await vtResponse.json();
-
-        // Combine the results for final decision
-        const finalThreatLevel = combineThreatLevels(
-            domainData.analysis.threatLevel,
-            vtData.analysis.threatLevel
-        );
-
-        const reasons = [
-            ...(domainData.analysis.reasons || []),
-            ...(vtData.analysis.recommendations || [])
-        ];
-
+        // Site is safe according to Google Safe Browsing
+        updateBadge('✓', '#00FF00');
         return {
-            threatLevel: finalThreatLevel,
-            confidence: Math.max(
-                parseFloat(domainData.analysis.confidence || 0),
-                parseFloat(vtData.analysis.confidence || 0)
-            ),
-            message: reasons.join('. '),
+            type: 'ANALYSIS_COMPLETE',
+            threatLevel: 'low',
+            message: 'Site appears safe',
             details: {
-                domain: new URL(url).hostname,
-                checks: [
-                    {
-                        type: 'domain',
-                        status: domainData.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
-                        message: domainData.analysis.reasons[0] || 'Domain analysis complete'
-                    },
-                    {
-                        type: 'virustotal',
-                        status: vtData.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
-                        message: `VirusTotal: ${vtData.analysis.positiveEngines || 0}/${vtData.analysis.details.totalEngines || 0} security vendors flagged this URL`
-                    }
-                ],
-                virusTotal: {
-                    scanDate: vtData.analysis.scanDate,
-                    positiveEngines: vtData.analysis.details.positiveEngines,
-                    totalEngines: vtData.analysis.details.totalEngines,
-                    categories: vtData.analysis.details.categories
-                }
+                checkedBy: 'Google Safe Browsing',
+                threatTypes: [],
+                timestamp: new Date().toISOString()
             }
         };
+
     } catch (error) {
-        console.error('URL check error:', error);
+        console.error('Error checking URL safety:', error);
+        updateBadge('!', '#FF0000');
         return {
+            type: 'ANALYSIS_ERROR',
             threatLevel: 'unknown',
-            message: 'Could not complete security check',
+            message: 'Error checking site safety',
             error: error.message
         };
     }
 }
 
-// Helper function to combine threat levels
-function combineThreatLevels(domainThreat, vtThreat) {
-    const threatLevels = ['safe', 'low', 'medium', 'high'];
-    const domainIndex = threatLevels.indexOf(domainThreat);
-    const vtIndex = threatLevels.indexOf(vtThreat);
-    
-    // Return the highest threat level
-    return threatLevels[Math.max(domainIndex, vtIndex)];
-} 
+// Helper function to show notifications
+function showNotification(title, message) {
+    chrome.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon.png',
+        title: title,
+        message: message
+    });
+}
+
+// Listen for tab updates
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'loading' && tab.url && !tab.url.startsWith('chrome://')) {
+        const result = await checkUrlSafety(tab.url);
+        // Send message to popup if it's open
+        chrome.runtime.sendMessage(result);
+    }
+}); 

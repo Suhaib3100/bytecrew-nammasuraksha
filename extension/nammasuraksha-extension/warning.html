@@ -1,4 +1,10 @@
-<!doctype html><html><head><meta charset="UTF-8"><title>Security Warning - NammaSuraksha</title><style>body {
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Security Warning - NammaSuraksha</title>
+    <style>
+        body {
             margin: 0;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -114,7 +120,54 @@
         .legitimate-domain {
             font-weight: bold;
             color: #2E7D32;
-        }</style></head><body><div class="container"><div class="warning-icon">⚠️</div><h1>Security Warning</h1><div class="warning-message" id="warning-message">Potential security threat detected!</div><div class="details"><div class="detail-item"><span class="detail-icon">🔍</span><div class="detail-text"><strong>Domain:</strong> <span id="domain-text"></span></div></div><div class="detail-item"><span class="detail-icon">⚠️</span><div class="detail-text"><strong>Threat Level:</strong> <span id="threat-level"></span></div></div><div class="detail-item"><span class="detail-icon">❗</span><div class="detail-text"><strong>Reasons:</strong><ul id="reason-list"></ul></div></div></div><div id="similarity-warning" class="similarity-warning" style="display: none;">This domain appears to be impersonating:<div class="legitimate-domain" id="legitimate-domain"></div></div><div class="buttons"><button class="back-button" id="back-button">Go Back (Recommended)</button> <button class="proceed-button" id="proceed-button">Proceed Anyway</button></div></div><script>document.addEventListener('DOMContentLoaded', function() {
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="warning-icon">⚠️</div>
+        <h1>Security Warning</h1>
+        <div class="warning-message" id="warning-message">
+            Potential security threat detected!
+        </div>
+        
+        <div class="details">
+            <div class="detail-item">
+                <span class="detail-icon">🔍</span>
+                <div class="detail-text">
+                    <strong>Domain:</strong>
+                    <span id="domain-text"></span>
+                </div>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">⚠️</span>
+                <div class="detail-text">
+                    <strong>Threat Level:</strong>
+                    <span id="threat-level"></span>
+                </div>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">❗</span>
+                <div class="detail-text">
+                    <strong>Reasons:</strong>
+                    <ul id="reason-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="similarity-warning" class="similarity-warning" style="display: none;">
+            This domain appears to be impersonating:
+            <div class="legitimate-domain" id="legitimate-domain"></div>
+        </div>
+        
+        <div class="buttons">
+            <button class="back-button" id="back-button">Go Back (Recommended)</button>
+            <button class="proceed-button" id="proceed-button">Proceed Anyway</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
             chrome.storage.local.get(['lastAnalysis'], function(data) {
                 if (data.lastAnalysis) {
                     const analysis = data.lastAnalysis.result;
@@ -164,4 +217,7 @@
                     window.close();
                 }
             });
-        });</script></body></html>
+        });
+    </script>
+</body>
+</html>

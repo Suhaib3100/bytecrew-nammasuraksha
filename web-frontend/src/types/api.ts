@@ -45,4 +45,22 @@ export interface ErrorResponse {
   success: false;
   error: string;
   details?: string;
+}
+
+export interface SafeBrowsingResponse {
+  success: boolean;
+  analysis: {
+    isMalicious: boolean;
+    threatLevel: string;
+    threats: string[];
+    details: {
+      totalThreats: number;
+      threatTypes: string[];
+      affectedPlatforms: string[];
+    };
+    timestamp: string;
+    cachedResult: boolean;
+    recommendations: string[];
+    url: string;
+  };
 } 

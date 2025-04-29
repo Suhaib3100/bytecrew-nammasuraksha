@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Website Verified - NammaSuraksha</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #E8F5E9;
+            color: #2E7D32;
+            text-align: center;
+        }
+        
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        h1 {
+            margin: 0 0 16px;
+            font-size: 24px;
+        }
+        
+        p {
+            margin: 8px 0;
+            color: #4CAF50;
+        }
+        
+        .details {
+            margin-top: 20px;
+            text-align: left;
+            padding: 16px;
+            background: #F1F8E9;
+            border-radius: 4px;
+        }
+        
+        .detail-item {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .detail-icon {
+            margin-right: 8px;
+            color: #4CAF50;
+        }
+        
+        button {
+            margin-top: 20px;
+            padding: 8px 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        button:hover {
+            background: #388E3C;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">✓</div>
+        <h1>Website Verified</h1>
+        <p id="status-message">This website has been verified as safe by NammaSuraksha</p>
+        
+        <div class="details">
+            <div class="detail-item">
+                <span class="detail-icon">✓</span>
+                <span>Domain Verified</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">✓</span>
+                <span>SSL Certificate Valid</span>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">✓</span>
+                <span>No Threats Detected</span>
+            </div>
+        </div>
+        
+        <button id="close-button">Close</button>
+    </div>
+    
+    <script src="js/safe.js"></script>
+</body>
+</html>

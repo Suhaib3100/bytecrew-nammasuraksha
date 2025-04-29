@@ -154,15 +154,25 @@ function updateFeatureStatus(feature, isActive) {
 
 // Helper function to update stats
 function updateStats(analysis) {
-    if (analysis.details) {
-        const threatsBlocked = document.getElementById('threats-blocked');
-        const linksScanned = document.getElementById('links-scanned');
+    chrome.storage.local.get(['threatsBlocked', 'sitesChecked', 'linksScanned'], (result) => {
+        // Update threats blocked
+        document.getElementById('threats-blocked').textContent = result.threatsBlocked || 0;
         
-        chrome.storage.local.get(['threatsBlocked', 'linksScanned'], (result) => {
-            threatsBlocked.textContent = result.threatsBlocked || 0;
-            linksScanned.textContent = result.linksScanned || 0;
-        });
-    }
+        // Update sites checked
+        document.getElementById('sites-checked').textContent = result.sitesChecked || 0;
+        
+        // Update links scanned if the element exists
+        const linksScannedElement = document.getElementById('links-scanned');
+        if (linksScannedElement) {
+            linksScannedElement.textContent = result.linksScanned || 0;
+        }
+
+        // Update safety score if available
+        const safetyScoreElement = document.getElementById('safety-score');
+        if (safetyScoreElement && analysis?.details?.securityScore) {
+            safetyScoreElement.textContent = `${Math.round(analysis.details.securityScore)}%`;
+        }
+    });
 }
 
 // Function to refresh analysis
@@ -356,28 +366,33 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!tab.url || tab.url.startsWith('chrome://')) {
             updateThreatStatus({
                 type: 'ERROR',
-                threatLevel: 'error',
-                message: 'Cannot analyze this page'
+                threatLevel: 'unknown',
+                message: 'Cannot check this page'
             });
             return;
         }
 
-        // Show initial analyzing state
+        // Show initial checking state
         updateThreatStatus({
-            type: 'ANALYZING',
-            threatLevel: 'analyzing',
-            message: 'Fetching analysis...'
+            type: 'CHECKING',
+            message: 'Checking site safety...'
         });
 
-        // Request current analysis
+        // Request safety check
         chrome.runtime.sendMessage({ 
-            type: 'GET_ANALYSIS',
+            type: 'GET_SAFETY_CHECK',
             tabId: tab.id 
-        });
+        }, handleSafetyCheckResponse);
 
         // Setup refresh button
         const refreshButton = document.getElementById('refreshAnalysis');
-        refreshButton.addEventListener('click', refreshAnalysis);
+        refreshButton.addEventListener('click', refreshSafetyCheck);
+
+        // Setup report button
+        const reportButton = document.getElementById('reportIssue');
+        reportButton.addEventListener('click', () => {
+            chrome.tabs.create({ url: 'https://example.com/report' }); // Update with your report URL
+        });
 
         // Setup settings button
         const settingsButton = document.getElementById('settings-btn');
@@ -385,12 +400,139 @@ document.addEventListener('DOMContentLoaded', async () => {
             chrome.runtime.openOptionsPage();
         });
 
+        // Load stats
+        updateStats();
+
     } catch (error) {
         console.error('Error initializing popup:', error);
         updateThreatStatus({
             type: 'ERROR',
-            threatLevel: 'error',
+            threatLevel: 'unknown',
             message: 'Failed to initialize'
         });
+    }
+});
+
+// Handle safety check response
+function handleSafetyCheckResponse(response) {
+    if (!response) {
+        updateThreatStatus({
+            type: 'ERROR',
+            threatLevel: 'unknown',
+            message: 'Failed to get safety check results'
+        });
+        return;
+    }
+
+    updateThreatStatus(response);
+    updateAnalysisDetails(response);
+    updateRecommendations(response.recommendations || []);
+    updateStats(response);
+}
+
+// Update status display
+function updateStatus(data) {
+    const statusCard = document.getElementById('safetyStatus');
+    const statusMessage = document.getElementById('statusMessage');
+    const statusIcon = statusCard.querySelector('.status-icon');
+
+    // Remove all existing status classes
+    statusCard.classList.remove('safe', 'low', 'medium', 'high', 'unknown', 'checking');
+    statusIcon.classList.remove('safe', 'low', 'medium', 'high', 'unknown', 'checking');
+
+    if (data.type === 'CHECKING') {
+        statusCard.classList.add('checking');
+        statusIcon.classList.add('checking');
+        statusMessage.textContent = data.message;
+        return;
+    }
+
+    // Add appropriate status class
+    statusCard.classList.add(data.threatLevel || 'unknown');
+    statusIcon.classList.add(data.threatLevel || 'unknown');
+    statusMessage.textContent = data.message;
+}
+
+// Update details section
+function updateDetails(data) {
+    const checkedBy = document.getElementById('checkedBy');
+    const lastChecked = document.getElementById('lastChecked');
+    const threatDetails = document.getElementById('threatDetails');
+
+    checkedBy.textContent = data.details?.checkedBy || 'Security Check';
+    lastChecked.textContent = new Date().toLocaleTimeString();
+
+    // Show additional threat details if available
+    if (data.details?.threatTypes?.length > 0) {
+        const detailsContent = threatDetails.querySelector('.details-content');
+        const threatTypesItem = document.createElement('div');
+        threatTypesItem.className = 'detail-item';
+        threatTypesItem.innerHTML = `
+            <span class="detail-label">Threats Found:</span>
+            <span class="detail-value">${data.details.threatTypes.join(', ')}</span>
+        `;
+        detailsContent.appendChild(threatTypesItem);
+    }
+}
+
+// Update recommendations
+function updateRecommendations(recommendations) {
+    const recommendationsList = document.getElementById('recommendationsList');
+    recommendationsList.innerHTML = '';
+
+    if (recommendations.length === 0) {
+        recommendationsList.innerHTML = '<li class="empty-state">No recommendations needed</li>';
+        return;
+    }
+
+    recommendations.forEach(rec => {
+        const li = document.createElement('li');
+        li.className = 'recommendation-item';
+        li.textContent = rec;
+        recommendationsList.appendChild(li);
+    });
+}
+
+// Refresh safety check
+async function refreshSafetyCheck() {
+    if (analysisInProgress || !currentTab) return;
+    
+    analysisInProgress = true;
+    const refreshButton = document.getElementById('refreshAnalysis');
+    refreshButton.disabled = true;
+    refreshButton.textContent = 'Checking...';
+
+    try {
+        updateThreatStatus({
+            type: 'CHECKING',
+            message: 'Refreshing safety check...'
+        });
+
+        chrome.runtime.sendMessage({ 
+            type: 'GET_SAFETY_CHECK',
+            tabId: currentTab.id 
+        }, handleSafetyCheckResponse);
+
+    } catch (error) {
+        console.error('Error refreshing safety check:', error);
+        updateThreatStatus({
+            type: 'ERROR',
+            threatLevel: 'unknown',
+            message: 'Failed to refresh check'
+        });
+    } finally {
+        refreshButton.disabled = false;
+        refreshButton.textContent = 'Refresh Check';
+        analysisInProgress = false;
+    }
+}
+
+// Listen for messages from background script
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'ANALYSIS_STATUS') {
+        updateThreatStatus(message.data);
+    } else if (message.type === 'ANALYSIS_COMPLETE') {
+        handleSafetyCheckResponse(message.data);
+        updateStats(message.data);
     }
 });

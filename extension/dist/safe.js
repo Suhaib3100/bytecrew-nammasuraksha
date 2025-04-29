@@ -1,0 +1,1 @@
+document.addEventListener("DOMContentLoaded",(function(){chrome.storage.local.get(["lastAnalysis"],(function(e){if(e.lastAnalysis){const t=e.lastAnalysis;document.getElementById("status-message").textContent=`${t.url} has been verified as safe by NammaSuraksha`}})),document.getElementById("close-button").addEventListener("click",(function(){window.close()}))}));

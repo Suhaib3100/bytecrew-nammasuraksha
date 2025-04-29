@@ -8,15 +8,16 @@
     "activeTab",
     "tabs",
     "webNavigation",
-    "scripting"
+    "scripting",
+    "notifications",
+    "alarms"
   ],
   "host_permissions": [
     "http://localhost:3001/*",
     "*://*/*"
   ],
   "background": {
-    "service_worker": "background.js",
-    "type": "module"
+    "service_worker": "background.js"
   },
   "action": {
     "default_popup": "popup.html",
@@ -41,5 +42,9 @@
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["*.js", "styles/*", "icons/*"],
+    "matches": ["<all_urls>"]
+  }]
 } 
