@@ -27,6 +27,16 @@ function handleMessage(message) {
         refreshButton.disabled = false;
         refreshButton.textContent = 'Refresh Analysis';
         analysisInProgress = false;
+    } else if (message.type === 'ANALYSIS_STARTED') {
+        updateLoadingState(true, message.data?.message || 'Analyzing...');
+        const refreshButton = document.getElementById('refreshAnalysis');
+        refreshButton.disabled = true;
+    } else if (message.type === 'ANALYSIS_ERROR') {
+        showError(message.error || 'An error occurred during analysis');
+        const refreshButton = document.getElementById('refreshAnalysis');
+        refreshButton.disabled = false;
+    } else if (message.type === 'FEATURE_STATUS') {
+        updateFeatureStatus(message.featureId, message.isActive);
     }
 }
 
@@ -185,6 +195,65 @@ async function refreshAnalysis() {
         refreshButton.disabled = false;
         refreshButton.textContent = 'Refresh Analysis';
         analysisInProgress = false;
+    }
+}
+
+function updateLoadingState(isLoading, message = 'Analyzing...') {
+    const statusCard = document.querySelector('.status-card');
+    const statusIcon = document.querySelector('.status-icon');
+    
+    if (isLoading) {
+        statusCard.classList.add('analyzing');
+        statusIcon.classList.add('analyzing');
+        statusCard.querySelector('.status-message').textContent = message;
+    } else {
+        statusCard.classList.remove('analyzing');
+        statusIcon.classList.remove('analyzing');
+    }
+}
+
+function showError(message) {
+    const statusCard = document.querySelector('.status-card');
+    statusCard.classList.remove('analyzing');
+    statusCard.classList.add('error');
+    statusCard.querySelector('.status-message').textContent = message;
+}
+
+function updateAnalysisResults(results) {
+    const analysisSection = document.querySelector('.analysis-section');
+    
+    if (!results || Object.keys(results).length === 0) {
+        analysisSection.innerHTML = `
+            <div class="empty-state">
+                No analysis results available yet.
+                Click refresh to analyze again.
+            </div>
+        `;
+        return;
+    }
+
+    // Update security checks
+    if (results.securityChecks) {
+        const securityList = document.querySelector('.security-checks');
+        securityList.innerHTML = results.securityChecks.map(check => `
+            <div class="check-item ${check.status === 'error' ? 'error' : ''}">
+                <div class="check-type">${check.type}</div>
+                <div class="check-message">${check.message}</div>
+            </div>
+        `).join('');
+    }
+
+    // Update stats if available
+    if (results.stats) {
+        Object.entries(results.stats).forEach(([key, value]) => {
+            const statElement = document.querySelector(`#${key}Stat`);
+            if (statElement) {
+                const valueElement = statElement.querySelector('.stat-value');
+                if (valueElement) {
+                    valueElement.textContent = value;
+                }
+            }
+        });
     }
 }
 

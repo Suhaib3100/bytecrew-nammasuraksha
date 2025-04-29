@@ -279,34 +279,128 @@ async function extractEmailContent(tabId) {
 // Handle tab updates with quick analysis
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'loading' && tab.url) {
-        if (isMailService(tab.url)) {
-            // For mail services, wait for complete load
-            chrome.runtime.sendMessage({
+        try {
+            // Skip chrome:// and other internal URLs
+            if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+                return;
+            }
+
+            // Check if it's a mail service
+            if (isMailService(tab.url)) {
+                sendMessage({
+                    type: 'ANALYSIS_STATUS',
+                    data: {
+                        type: 'EMAIL_ANALYSIS',
+                        threatLevel: 'analyzing',
+                        message: 'Waiting for email content...'
+                    }
+                });
+                return;
+            }
+
+            // For regular websites, do quick domain analysis
+            const analysis = await performQuickDomainAnalysis(tab.url);
+            if (analysis) {
+                // Update badge immediately
+                updateBadge(analysis, tabId);
+            }
+        } catch (error) {
+            console.error('Error in tab update handler:', error);
+            sendMessage({
                 type: 'ANALYSIS_STATUS',
                 data: {
-                    type: 'EMAIL_ANALYSIS',
-                    threatLevel: 'analyzing',
-                    message: 'Waiting for email content...'
+                    type: 'ERROR',
+                    threatLevel: 'error',
+                    message: 'Analysis failed: ' + error.message
+                }
+            });
+        }
+    }
+});
+
+// Listen for messages from popup
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.type === 'GET_ANALYSIS') {
+        handleGetAnalysis(message.tabId);
+    } else if (message.type === 'REFRESH_ANALYSIS') {
+        handleRefreshAnalysis(message.tabId);
+    }
+    return true;
+});
+
+// Handle getting analysis
+async function handleGetAnalysis(tabId) {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        
+        // Skip chrome:// and other internal URLs
+        if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+            sendMessage({
+                type: 'ANALYSIS_STATUS',
+                data: {
+                    type: 'ERROR',
+                    threatLevel: 'error',
+                    message: 'Cannot analyze this page'
                 }
             });
             return;
         }
 
-        // For regular websites, do quick domain analysis
-        const analysis = await performQuickDomainAnalysis(tab.url);
-        if (analysis) {
-            chrome.runtime.sendMessage({
+        // Check cache first
+        const cached = analysisCache.get(tab.url);
+        if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+            sendMessage({
                 type: 'ANALYSIS_COMPLETE',
-                data: analysis
+                data: cached.result
             });
+            return;
         }
-    } else if (changeInfo.status === 'complete') {
+
+        // Perform new analysis
         if (isMailService(tab.url)) {
-            // For mail services, analyze email content
             await performEmailAnalysis(tabId);
+        } else {
+            await performQuickDomainAnalysis(tab.url);
         }
+    } catch (error) {
+        console.error('Error getting analysis:', error);
+        sendMessage({
+            type: 'ANALYSIS_STATUS',
+            data: {
+                type: 'ERROR',
+                threatLevel: 'error',
+                message: 'Failed to get analysis: ' + error.message
+            }
+        });
     }
-});
+}
+
+// Handle refreshing analysis
+async function handleRefreshAnalysis(tabId) {
+    try {
+        const tab = await chrome.tabs.get(tabId);
+        
+        // Clear cache for this URL
+        analysisCache.delete(tab.url);
+        
+        // Perform new analysis
+        if (isMailService(tab.url)) {
+            await performEmailAnalysis(tabId);
+        } else {
+            await performQuickDomainAnalysis(tab.url);
+        }
+    } catch (error) {
+        console.error('Error refreshing analysis:', error);
+        sendMessage({
+            type: 'ANALYSIS_STATUS',
+            data: {
+                type: 'ERROR',
+                threatLevel: 'error',
+                message: 'Failed to refresh analysis: ' + error.message
+            }
+        });
+    }
+}
 
 // Update badge with appropriate color and text
 function updateBadge(analysis, tabId) {
@@ -341,58 +435,6 @@ function updateBadge(analysis, tabId) {
                 chrome.action.setBadgeText({ text: badgeText, tabId: tabs[0].id });
             }
         });
-    }
-}
-
-// Listen for messages from popup and content scripts
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'GET_ANALYSIS') {
-        handleGetAnalysis(message.tabId);
-    } else if (message.type === 'REFRESH_ANALYSIS') {
-        handleRefreshAnalysis(message.tabId);
-    } else if (message.type === 'GET_QUICK_ANALYSIS') {
-        chrome.tabs.get(message.tabId, async (tab) => {
-            const analysis = await performQuickDomainAnalysis(tab.url);
-            sendResponse(analysis);
-        });
-        return true; // Required for async response
-    }
-    return true;
-});
-
-// Handle getting analysis
-async function handleGetAnalysis(tabId) {
-    try {
-        const analysis = analysisCache.get(tabId);
-        if (analysis) {
-            sendAnalysisToPopup(analysis);
-        } else {
-            await performAnalysis(tabId);
-        }
-    } catch (error) {
-        console.error('Error getting analysis:', error);
-        sendErrorToPopup('Failed to get analysis');
-    }
-}
-
-// Handle refreshing analysis
-async function handleRefreshAnalysis(tabId) {
-    try {
-        await performAnalysis(tabId);
-    } catch (error) {
-        console.error('Error refreshing analysis:', error);
-        sendErrorToPopup('Failed to refresh analysis');
-    }
-}
-
-// Handle tab updates
-async function handleTabUpdate(tabId, tab) {
-    try {
-        if (tab.url && !tab.url.startsWith('chrome://')) {
-            await performAnalysis(tabId);
-        }
-    } catch (error) {
-        console.error('Error handling tab update:', error);
     }
 }
 
