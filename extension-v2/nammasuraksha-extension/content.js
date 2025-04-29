@@ -1,0 +1,1 @@
+chrome.runtime.onMessage.addListener((function(e,n,t){"PHISHING_DETECTED"===e.type&&console.warn("Phishing site detected:",e.url)}));
