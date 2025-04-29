@@ -15,11 +15,13 @@ app.use(express.json());
 
 // Routes
 const analyzeRoutes = require('./routes/analyze');
+const quickAnalysisRoutes = require('./routes/quickAnalysis');
 const analyticsRoutes = require('./routes/analytics');
 const phishingRoutes = require('./routes/phishing');
 const reportsRoutes = require('./routes/reports');
 
 app.use('/api/analyze', analyzeRoutes);
+app.use('/api/quick', quickAnalysisRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/phishing', phishingRoutes);
 app.use('/api/reports', reportsRoutes);
@@ -32,5 +34,5 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`✅Server is running on port ${PORT}`);
 }); 

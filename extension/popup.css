@@ -1,0 +1,255 @@
+/* Base styles */
+:root {
+    --color-safe: #4CAF50;
+    --color-warning: #FFC107;
+    --color-danger: #F44336;
+    --color-unknown: #9E9E9E;
+    --color-error: #D32F2F;
+    --color-text: #333333;
+    --color-background: #FFFFFF;
+    --color-border: #E0E0E0;
+    --border-radius: 8px;
+    --spacing-unit: 8px;
+}
+
+body {
+    width: 380px;
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    color: var(--color-text);
+    background: var(--color-background);
+}
+
+/* Header styles */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* Status card styles */
+.status-card {
+    background: #F5F5F5;
+    border-radius: var(--border-radius);
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.status-card.safe { background-color: #E8F5E9; }
+.status-card.warning { background-color: #FFF3E0; }
+.status-card.danger { background-color: #FFEBEE; }
+.status-card.unknown { background-color: #F5F5F5; }
+.status-card.error { background-color: #FFEBEE; }
+
+.status-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+}
+
+.status-icon.safe::before { content: '✓'; color: var(--color-safe); }
+.status-icon.warning::before { content: '!'; color: var(--color-warning); }
+.status-icon.danger::before { content: '⚠'; color: var(--color-danger); }
+.status-icon.unknown::before { content: '?'; color: var(--color-unknown); }
+.status-icon.error::before { content: '×'; color: var(--color-error); }
+
+.status-content {
+    flex: 1;
+}
+
+#threatLevel {
+    font-weight: 600;
+    margin: 0 0 4px 0;
+}
+
+#statusMessage {
+    margin: 0;
+    font-size: 14px;
+}
+
+/* Analysis details section */
+.details-section {
+    margin-top: 16px;
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 0 0 8px 0;
+}
+
+/* Threats list */
+.threat-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: var(--border-radius);
+    background: #F5F5F5;
+}
+
+.threat-item.high { background-color: #FFEBEE; }
+.threat-item.medium { background-color: #FFF3E0; }
+.threat-item.low { background-color: #E8F5E9; }
+
+.threat-severity {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+
+.threat-item.high .threat-severity { background-color: var(--color-danger); color: white; }
+.threat-item.medium .threat-severity { background-color: var(--color-warning); color: black; }
+.threat-item.low .threat-severity { background-color: var(--color-safe); color: white; }
+
+.threat-description {
+    font-size: 14px;
+    flex: 1;
+}
+
+/* Patterns list */
+.pattern-item {
+    padding: 8px;
+    margin: 4px 0;
+    background: #F5F5F5;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+}
+
+/* Recommendations list */
+.recommendation-item {
+    padding: 8px;
+    margin: 4px 0;
+    background: #E3F2FD;
+    border-radius: var(--border-radius);
+    font-size: 14px;
+}
+
+/* Stats section */
+.stats-section {
+    display: flex;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 16px;
+    background: #F5F5F5;
+    border-radius: var(--border-radius);
+}
+
+.stat-item {
+    flex: 1;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #2196F3;
+}
+
+.stat-label {
+    font-size: 12px;
+    color: #757575;
+}
+
+/* Feature status */
+.feature-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px;
+    margin: 8px 0;
+    background: #F5F5F5;
+    border-radius: var(--border-radius);
+}
+
+.feature-name {
+    font-weight: 500;
+}
+
+.feature-status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 12px;
+}
+
+.feature-status.active {
+    background: var(--color-safe);
+    color: white;
+}
+
+.feature-status.inactive {
+    background: var(--color-unknown);
+    color: white;
+}
+
+/* Buttons */
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: var(--border-radius);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#refreshAnalysis {
+    background: #2196F3;
+    color: white;
+}
+
+#refreshAnalysis:hover {
+    background: #1976D2;
+}
+
+#refreshAnalysis:disabled {
+    background: #BDBDBD;
+    cursor: not-allowed;
+}
+
+#settings-btn {
+    background: transparent;
+    color: #757575;
+}
+
+#settings-btn:hover {
+    background: #F5F5F5;
+}
+
+/* Empty states */
+.empty-state {
+    text-align: center;
+    color: #757575;
+    font-style: italic;
+    padding: 16px;
+    background: #F5F5F5;
+    border-radius: var(--border-radius);
+    margin: 8px 0;
+}
+
+/* Last updated timestamp */
+#lastUpdated {
+    font-size: 12px;
+    color: #757575;
+    text-align: right;
+    margin-top: 16px;
+} 

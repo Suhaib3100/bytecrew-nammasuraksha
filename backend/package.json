@@ -24,7 +24,8 @@
     "morgan": "^1.10.0",
     "openai": "^4.28.0",
     "pdfkit": "^0.14.0",
-    "pg": "^8.11.3"
+    "pg": "^8.11.3",
+    "whois-json": "^2.0.4"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

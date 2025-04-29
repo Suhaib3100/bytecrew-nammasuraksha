@@ -1,19 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "NammaSuraksha Security",
-  "version": "1.0",
-  "description": "Real-time phishing detection and security alerts for safer browsing",
+  "name": "NammaSuraksha",
+  "version": "1.0.0",
+  "description": "A security extension to protect users from online threats",
   "permissions": [
     "activeTab",
     "storage",
-    "webNavigation",
-    "webRequest",
     "tabs",
-    "notifications"
+    "webNavigation"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "http://localhost:3001/*"
   ],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -22,19 +24,19 @@
       "128": "icons/icon.png"
     }
   },
-  "background": {
-    "service_worker": "background.js"
-  },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["emailScanner.js", "socialMediaScanner.js"],
-      "css": ["styles/content.css"]
+      "run_at": "document_end"
     }
   ],
   "icons": {
     "16": "icons/icon.png",
     "48": "icons/icon.png",
     "128": "icons/icon.png"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
   }
 } 
