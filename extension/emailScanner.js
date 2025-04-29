@@ -9,13 +9,81 @@ const SUSPICIOUS_PATTERNS = [
     // Add more patterns
 ];
 
+// Style for link indicators
+const INDICATOR_STYLES = `
+.link-indicator {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    vertical-align: middle;
+    border-radius: 50%;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: center;
+    cursor: help;
+    position: relative;
+}
+
+.link-indicator.safe {
+    background: #4CAF50;
+    color: white;
+}
+
+.link-indicator.warning {
+    background: #FFC107;
+    color: #333;
+}
+
+.link-indicator.danger {
+    background: #F44336;
+    color: white;
+}
+
+.link-tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: white;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10000;
+}
+
+.link-indicator:hover .link-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+.modified-link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+`;
+
 // Track processed elements to avoid re-scanning
 const processedElements = new WeakSet();
 
-// Start scanning
-startEmailScanning();
+// Add styles to the page
+function addStyles() {
+    const style = document.createElement('style');
+    style.textContent = INDICATOR_STYLES;
+    document.head.appendChild(style);
+}
 
+// Start scanning
 function startEmailScanning() {
+    // Add styles
+    addStyles();
+
     // Initial scan
     scanEmailContent();
     
@@ -85,7 +153,6 @@ async function checkUrl(url) {
                 if (attempt === maxRetries) {
                     throw retryError;
                 }
-                // Wait before retrying
                 await new Promise(resolve => setTimeout(resolve, 1000));
             }
         }
@@ -99,77 +166,90 @@ async function checkUrl(url) {
     }
 }
 
+function createIndicator(status, message) {
+    const container = document.createElement('span');
+    container.className = 'link-indicator ' + status;
+    
+    // Set indicator symbol
+    switch (status) {
+        case 'safe':
+            container.textContent = '✓';
+            break;
+        case 'warning':
+            container.textContent = '!';
+            break;
+        case 'danger':
+            container.textContent = '⚠';
+            break;
+        default:
+            container.textContent = '?';
+    }
+
+    // Add tooltip
+    const tooltip = document.createElement('span');
+    tooltip.className = 'link-tooltip';
+    tooltip.textContent = message;
+    container.appendChild(tooltip);
+
+    return container;
+}
+
 async function scanLink(element) {
     if (processedElements.has(element)) return;
     
-    processedElements.add(element);
-    element.setAttribute('data-scanned', 'true');
-    
-    const url = element.href;
-    if (!url) return;
-    
     try {
-        if (isShortenedUrl(url)) {
-            addWarningOverlay(element, 'Shortened URL detected. Click to verify destination.');
-            return;
-        }
-
-        const result = await checkUrl(url);
-        if (result.threatLevel !== 'safe') {
-            addWarningOverlay(element, result.message);
-        }
-    } catch (error) {
-        console.warn('Error scanning link:', error);
-    }
-}
-
-async function scanPage() {
-    const links = document.querySelectorAll('a[href]:not([data-scanned])');
-    const senderElements = [
-        ...document.querySelectorAll('.gD'),
-        ...document.querySelectorAll('.EPt5Dd'),
-        ...document.querySelectorAll('.from_name')
-    ];
-
-    // Scan links
-    for (const link of links) {
-        await scanLink(link);
-    }
-
-    // Check senders
-    senderElements.forEach(element => {
-        if (!processedElements.has(element)) {
-            processedElements.add(element);
-            const address = element.textContent.trim();
-            if (isSuspiciousEmail(address)) {
-                addWarningOverlay(element, 'Potentially spoofed sender address');
-            }
-        }
-    });
-}
-
-function initializeScanner() {
-    try {
-        scanPage();
+        // Mark as processed
+        processedElements.add(element);
         
-        // Set up mutation observer
-        const observer = new MutationObserver((mutations) => {
-            mutations.forEach((mutation) => {
-                if (mutation.addedNodes.length) {
-                    scanPage();
+        // Create container for link and indicator
+        const container = document.createElement('span');
+        container.className = 'modified-link';
+        
+        // Move the link into the container
+        element.parentNode.insertBefore(container, element);
+        container.appendChild(element);
+        
+        const url = element.href;
+        if (!url) return;
+
+        // Show analyzing state
+        const loadingIndicator = createIndicator('warning', 'Analyzing link safety...');
+        container.appendChild(loadingIndicator);
+
+        // Check URL safety
+        const result = await checkUrl(url);
+        container.removeChild(loadingIndicator);
+
+        // Create appropriate indicator based on result
+        let status, message;
+        if (result.threatLevel === 'safe') {
+            status = 'safe';
+            message = 'This link has been verified as safe';
+        } else if (result.threatLevel === 'medium') {
+            status = 'warning';
+            message = result.message || 'This link may not be safe';
+        } else if (result.threatLevel === 'high') {
+            status = 'danger';
+            message = result.message || 'Warning: This link may be dangerous';
+        } else {
+            status = 'warning';
+            message = 'Could not verify link safety';
+        }
+
+        const indicator = createIndicator(status, message);
+        container.appendChild(indicator);
+
+        // Add click handler for dangerous links
+        if (status === 'danger' || status === 'warning') {
+            element.addEventListener('click', (e) => {
+                if (!confirm(`Warning: ${message}\n\nDo you want to proceed?`)) {
+                    e.preventDefault();
+                    return false;
                 }
             });
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        // Periodic scan with proper interval handling
-        setInterval(scanPage, 2000);
+        }
     } catch (error) {
-        console.error('Error initializing scanner:', error);
+        console.error('Error scanning link:', error);
     }
 }
 
@@ -178,29 +258,8 @@ function scanLinks() {
     
     links.forEach(async (link) => {
         if (processedElements.has(link)) return;
-        
-        processedElements.add(link);
         link.setAttribute('data-scanned', 'true');
-        
-        const url = link.href;
-        if (!url) return;
-
-        try {
-            // Check if it's a shortened URL
-            if (isShortenedUrl(url)) {
-                addWarningOverlay(link, 'Shortened URL detected. Click to verify destination.');
-                return;
-            }
-
-            // Send URL to background script for checking
-            const response = await checkUrl(url);
-
-            if (response.threatLevel !== 'safe') {
-                addWarningOverlay(link, response.message);
-            }
-        } catch (error) {
-            console.error('Error scanning link:', error);
-        }
+        await scanLink(link);
     });
 }
 
@@ -290,4 +349,7 @@ function addWarningOverlay(element, message) {
     });
 
     container.appendChild(warning);
-} 
+}
+
+// Initialize scanner
+startEmailScanning(); 

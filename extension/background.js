@@ -276,12 +276,72 @@ async function extractEmailContent(tabId) {
     }
 }
 
+// Handle phishing detection and redirection
+async function handlePhishingDetection(tab, analysis) {
+    if (analysis.isPhishing && analysis.legitimateSource) {
+        // Check if we should show test URL notification
+        const notificationMessage = analysis.isTestUrl
+            ? `Test phishing page detected! This is a safe test URL from Google.`
+            : `Phishing site detected! Redirecting to: ${analysis.legitimateSource}`;
+
+        // Store the original URL for reference
+        await chrome.storage.local.set({
+            'lastPhishingRedirect': {
+                originalUrl: tab.url,
+                legitimateSource: analysis.legitimateSource,
+                timestamp: Date.now(),
+                isTestUrl: analysis.isTestUrl
+            }
+        });
+
+        // Show warning notification
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/warning-48.png',
+            title: analysis.isTestUrl ? 'Test Phishing Site Detected!' : 'Phishing Site Detected!',
+            message: notificationMessage
+        });
+
+        // For test URLs, show a confirmation dialog before redirecting
+        if (analysis.isTestUrl) {
+            chrome.tabs.sendMessage(tab.id, {
+                type: 'SHOW_PHISHING_DIALOG',
+                data: {
+                    message: 'This is a test phishing page. Would you like to be redirected to the legitimate site?',
+                    legitimateUrl: analysis.legitimateSource
+                }
+            });
+        } else {
+            // For real phishing sites, redirect immediately
+            await chrome.tabs.update(tab.id, { url: analysis.legitimateSource });
+        }
+
+        // Update stats
+        const stats = await chrome.storage.local.get(['phishingRedirects']);
+        await chrome.storage.local.set({
+            'phishingRedirects': (stats.phishingRedirects || 0) + 1
+        });
+
+        // Update badge with warning
+        chrome.action.setBadgeText({ 
+            text: '⚠️',
+            tabId: tab.id 
+        });
+        chrome.action.setBadgeBackgroundColor({ 
+            color: '#FF0000',
+            tabId: tab.id 
+        });
+    }
+}
+
 // Handle tab updates with quick analysis
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.status === 'loading' && tab.url) {
         try {
             // Skip chrome:// and other internal URLs
-            if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
+            if (tab.url.startsWith('chrome://') || 
+                tab.url.startsWith('chrome-extension://') ||
+                tab.url.startsWith('about:')) {
                 return;
             }
 
@@ -298,12 +358,35 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 return;
             }
 
-            // For regular websites, do quick domain analysis
-            const analysis = await performQuickDomainAnalysis(tab.url);
-            if (analysis) {
-                // Update badge immediately
-                updateBadge(analysis, tabId);
+            // For regular websites, check with VirusTotal first
+            const vtResponse = await fetch('http://localhost:3001/api/virustotal/analyze-url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url: tab.url })
+            });
+
+            if (!vtResponse.ok) {
+                throw new Error('VirusTotal analysis failed');
             }
+
+            const vtData = await vtResponse.json();
+            
+            if (vtData.success) {
+                // Handle phishing detection and redirection
+                await handlePhishingDetection(tab, vtData.analysis);
+                
+                // Update badge
+                updateBadge(vtData.analysis, tabId);
+                
+                // Send analysis to popup
+                sendMessage({
+                    type: 'ANALYSIS_COMPLETE',
+                    data: vtData.analysis
+                });
+            }
+
         } catch (error) {
             console.error('Error in tab update handler:', error);
             sendMessage({
@@ -402,10 +485,121 @@ async function handleRefreshAnalysis(tabId) {
     }
 }
 
-// Update badge with appropriate color and text
+// Function to check URL with both VirusTotal and Safe Browsing
+async function checkUrl(url) {
+    try {
+        // Check with Google Safe Browsing first (faster response)
+        const safeBrowsingResponse = await fetch('http://localhost:3001/api/safebrowsing/check-url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (!safeBrowsingResponse.ok) {
+            throw new Error('Safe Browsing check failed');
+        }
+
+        const safeBrowsingData = await safeBrowsingResponse.json();
+        
+        // If Google Safe Browsing detects a threat, prepare detailed response
+        if (safeBrowsingData.success && safeBrowsingData.analysis.isMalicious) {
+            const threatDetails = {
+                threatLevel: safeBrowsingData.analysis.threatLevel || 'high',
+                confidence: 0.9,
+                message: `Google Safe Browsing Warning: ${safeBrowsingData.analysis.details.threatTypes.join(', ')}`,
+                details: {
+                    source: 'Google Safe Browsing',
+                    threats: safeBrowsingData.analysis.threats,
+                    affectedPlatforms: safeBrowsingData.analysis.details.affectedPlatforms,
+                    totalThreats: safeBrowsingData.analysis.details.totalThreats,
+                    recommendations: safeBrowsingData.analysis.recommendations || [],
+                    checks: [{
+                        type: 'safebrowsing',
+                        status: 'danger',
+                        message: 'Site flagged as malicious by Google Safe Browsing'
+                    }]
+                }
+            };
+
+            // Show immediate warning notification
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'icons/warning-48.png',
+                title: 'Security Alert!',
+                message: threatDetails.message
+            });
+
+            return threatDetails;
+        }
+
+        // Then check with VirusTotal for additional context
+        const vtResponse = await fetch('http://localhost:3001/api/virustotal/analyze-url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (!vtResponse.ok) {
+            throw new Error('VirusTotal analysis failed');
+        }
+
+        const vtData = await vtResponse.json();
+
+        // Combine the results
+        const analysis = vtData.analysis;
+        analysis.details.safeBrowsing = {
+            checked: true,
+            result: safeBrowsingData.analysis,
+            timestamp: safeBrowsingData.analysis.timestamp
+        };
+
+        // Update threat level based on combined results
+        if (safeBrowsingData.analysis.isMalicious) {
+            analysis.threatLevel = Math.max(
+                getThreatLevelValue(analysis.threatLevel),
+                getThreatLevelValue(safeBrowsingData.analysis.threatLevel)
+            );
+            analysis.confidence = Math.max(analysis.confidence, 0.9);
+        }
+
+        // Add combined recommendations
+        analysis.recommendations = [
+            ...(analysis.recommendations || []),
+            ...(safeBrowsingData.analysis.recommendations || [])
+        ];
+
+        return analysis;
+
+    } catch (error) {
+        console.error('URL check error:', error);
+        return {
+            threatLevel: 'unknown',
+            message: 'Could not complete security check',
+            error: error.message
+        };
+    }
+}
+
+// Helper function to convert threat level to numeric value
+function getThreatLevelValue(level) {
+    const levels = {
+        'safe': 0,
+        'low': 1,
+        'medium': 2,
+        'high': 3
+    };
+    return levels[level] || 0;
+}
+
+// Update badge based on combined analysis
 function updateBadge(analysis, tabId) {
     const colors = {
-        low: '#4CAF50',     // Green
+        safe: '#4CAF50',    // Green
+        low: '#8BC34A',     // Light Green
         medium: '#FFC107',  // Yellow
         high: '#F44336',    // Red
         analyzing: '#2196F3',// Blue
@@ -413,27 +607,43 @@ function updateBadge(analysis, tabId) {
         unknown: '#9E9E9E'  // Grey
     };
 
-    const text = {
-        low: '✓',
-        medium: '!',
-        high: '⚠',
+    const icons = {
+        safe: '✓',
+        low: 'ℹ',
+        medium: '⚠',
+        high: '⛔',
         analyzing: '...',
-        error: 'X',
+        error: '✗',
         unknown: '?'
     };
 
-    const color = colors[analysis.threatLevel] || colors.unknown;
-    const badgeText = text[analysis.threatLevel] || text.unknown;
+    // Determine badge color and text
+    let badgeColor = colors[analysis.threatLevel] || colors.unknown;
+    let badgeText = icons[analysis.threatLevel] || icons.unknown;
 
-    if (tabId) {
-        chrome.action.setBadgeBackgroundColor({ color, tabId });
-        chrome.action.setBadgeText({ text: badgeText, tabId });
-    } else {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-            if (tabs[0]) {
-                chrome.action.setBadgeBackgroundColor({ color, tabId: tabs[0].id });
-                chrome.action.setBadgeText({ text: badgeText, tabId: tabs[0].id });
-            }
+    // If Google Safe Browsing detected a threat, override with red
+    if (analysis.details?.safeBrowsing?.result?.isMalicious) {
+        badgeColor = colors.high;
+        badgeText = '⛔';
+    }
+
+    chrome.action.setBadgeText({ 
+        text: badgeText,
+        tabId 
+    });
+    
+    chrome.action.setBadgeBackgroundColor({ 
+        color: badgeColor,
+        tabId 
+    });
+
+    // Show notification for high threats
+    if (analysis.threatLevel === 'high' || analysis.details?.safeBrowsing?.result?.isMalicious) {
+        chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icons/warning-48.png',
+            title: 'Security Warning!',
+            message: analysis.message || 'This site has been flagged as dangerous'
         });
     }
 }
@@ -631,19 +841,64 @@ async function analyzeDomain(domain) {
             throw new Error(data.error || 'Analysis failed');
         }
 
-        return {
-            threatLevel: data.analysis.threatLevel,
-            confidence: data.analysis.confidence,
-            message: data.analysis.reasons.join('. '),
-            details: {
-                domain: data.analysis.domain,
-                checks: [
-                    {
-                        type: 'domain',
-                        status: data.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
-                        message: data.analysis.reasons[0] || 'Domain analysis complete'
+        // Calculate final threat assessment
+        const analysis = data.analysis;
+        let finalThreatLevel = analysis.threatLevel;
+        let finalMessage = '';
+        let actionRequired = false;
+
+        // Determine severity and required action based on analysis
+        if (analysis.confidence >= 0.8) {
+            // High confidence in the analysis
+            switch (analysis.threatLevel) {
+                case 'high':
+                    finalMessage = 'High-risk phishing attempt detected! DO NOT proceed.';
+                    actionRequired = true;
+                    break;
+                case 'medium':
+                    if (analysis.reasons.some(r => r.includes('suspicious pattern'))) {
+                        finalMessage = 'Warning: This appears to be impersonating ' + 
+                            (analysis.details.similarityMatches[0]?.brand || 'a legitimate service');
+                        actionRequired = true;
+                    } else {
+                        finalMessage = 'Caution: Suspicious domain detected';
                     }
-                ]
+                    break;
+                case 'low':
+                    finalMessage = 'Minor security concerns detected';
+                    break;
+                case 'safe':
+                    finalMessage = 'Domain appears to be legitimate';
+                    break;
+            }
+        } else {
+            // Lower confidence - be more cautious
+            finalMessage = 'Potential security risk - proceed with caution';
+            if (analysis.threatLevel !== 'safe') {
+                actionRequired = true;
+            }
+        }
+
+        // Include AI insights if available
+        if (analysis.details.aiAnalysis) {
+            finalMessage += `\nAI Analysis: ${analysis.details.aiAnalysis.aiReasons[0] || ''}`;
+        }
+
+        return {
+            threatLevel: finalThreatLevel,
+            confidence: analysis.confidence,
+            message: finalMessage,
+            actionRequired: actionRequired,
+            details: {
+                domain: analysis.domain,
+                checks: [{
+                    type: 'domain',
+                    status: actionRequired ? 'danger' : 'warning',
+                    message: finalMessage
+                }],
+                reasons: analysis.reasons,
+                matchDetails: analysis.details.similarityMatches,
+                indicators: analysis.details.phishingIndicators
             }
         };
     } catch (error) {
@@ -651,7 +906,100 @@ async function analyzeDomain(domain) {
         return {
             threatLevel: 'error',
             message: 'Failed to analyze domain',
+            error: error.message,
+            actionRequired: false
+        };
+    }
+}
+
+async function checkUrl(url) {
+    try {
+        // First, check with our domain analysis
+        const domainResponse = await fetch('http://localhost:3001/api/quick/domain/analyze', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ domain: new URL(url).hostname })
+        });
+
+        if (!domainResponse.ok) {
+            throw new Error('Domain analysis failed');
+        }
+
+        const domainData = await domainResponse.json();
+        
+        // Then, check with VirusTotal
+        const vtResponse = await fetch('http://localhost:3001/api/virustotal/analyze-url', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url })
+        });
+
+        if (!vtResponse.ok) {
+            throw new Error('VirusTotal analysis failed');
+        }
+
+        const vtData = await vtResponse.json();
+
+        // Combine the results for final decision
+        const finalThreatLevel = combineThreatLevels(
+            domainData.analysis.threatLevel,
+            vtData.analysis.threatLevel
+        );
+
+        const reasons = [
+            ...(domainData.analysis.reasons || []),
+            ...(vtData.analysis.recommendations || [])
+        ];
+
+        return {
+            threatLevel: finalThreatLevel,
+            confidence: Math.max(
+                parseFloat(domainData.analysis.confidence || 0),
+                parseFloat(vtData.analysis.confidence || 0)
+            ),
+            message: reasons.join('. '),
+            details: {
+                domain: new URL(url).hostname,
+                checks: [
+                    {
+                        type: 'domain',
+                        status: domainData.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
+                        message: domainData.analysis.reasons[0] || 'Domain analysis complete'
+                    },
+                    {
+                        type: 'virustotal',
+                        status: vtData.analysis.threatLevel === 'safe' ? 'safe' : 'danger',
+                        message: `VirusTotal: ${vtData.analysis.positiveEngines || 0}/${vtData.analysis.details.totalEngines || 0} security vendors flagged this URL`
+                    }
+                ],
+                virusTotal: {
+                    scanDate: vtData.analysis.scanDate,
+                    positiveEngines: vtData.analysis.details.positiveEngines,
+                    totalEngines: vtData.analysis.details.totalEngines,
+                    categories: vtData.analysis.details.categories
+                }
+            }
+        };
+    } catch (error) {
+        console.error('URL check error:', error);
+        return {
+            threatLevel: 'unknown',
+            message: 'Could not complete security check',
             error: error.message
         };
     }
+}
+
+// Helper function to combine threat levels
+function combineThreatLevels(domainThreat, vtThreat) {
+    const threatLevels = ['safe', 'low', 'medium', 'high'];
+    const domainIndex = threatLevels.indexOf(domainThreat);
+    const vtIndex = threatLevels.indexOf(vtThreat);
+    
+    // Return the highest threat level
+    return threatLevels[Math.max(domainIndex, vtIndex)];
 } 

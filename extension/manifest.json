@@ -21,22 +21,23 @@
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+      "16": "icons/icon.png",
+      "48": "icons/icon.png",
+      "128": "icons/icon.png"
     }
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
       "js": ["emailScanner.js", "socialMediaScanner.js"],
+      "css": ["styles/content.css"],
       "run_at": "document_idle"
     }
   ],
   "icons": {
-    "16": "icons/icon16.png",
-    "48": "icons/icon48.png",
-    "128": "icons/icon128.png"
+    "16": "icons/icon.png",
+    "48": "icons/icon.png",
+    "128": "icons/icon.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"

@@ -1,5 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const OpenAI = require('openai');
+
+// Initialize OpenAI with API key from environment
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+});
 
 // Enhanced patterns database with more sophisticated rules
 const DOMAIN_PATTERNS = {
@@ -237,28 +243,96 @@ function analyzePatternWithAI(domain, patterns) {
     return results;
 }
 
-// Enhanced final judgment system
-function makeFinalJudgment(domain, aiResults, similarityResults) {
+// New function to analyze domain using OpenAI
+async function analyzeWithAI(domain, existingAnalysis) {
+    try {
+        const prompt = `Analyze this domain name for potential phishing or malicious intent: "${domain}"
+
+Consider the following aspects:
+1. Visual similarity to legitimate domains
+2. Character substitutions (like using '0' for 'o')
+3. Common phishing patterns
+4. Brand impersonation attempts
+5. Suspicious keywords or combinations
+
+Context from basic analysis:
+${JSON.stringify(existingAnalysis, null, 2)}
+
+Provide a detailed analysis in JSON format with:
+- threatLevel: "safe", "low", "medium", or "high"
+- confidence: number between 0 and 1
+- reasons: array of strings explaining the analysis
+- additionalPatterns: any suspicious patterns not caught by basic analysis`;
+
+        const completion = await openai.chat.completions.create({
+            model: "gpt-3.5-turbo",
+            messages: [
+                {
+                    role: "system",
+                    content: "You are a cybersecurity expert specialized in analyzing domain names for phishing attempts. Provide analysis in JSON format only."
+                },
+                {
+                    role: "user",
+                    content: prompt
+                }
+            ],
+            temperature: 0.3,
+            max_tokens: 500
+        });
+
+        const aiResponse = JSON.parse(completion.choices[0].message.content);
+        return {
+            aiThreatLevel: aiResponse.threatLevel,
+            aiConfidence: aiResponse.confidence,
+            aiReasons: aiResponse.reasons,
+            additionalPatterns: aiResponse.additionalPatterns
+        };
+    } catch (error) {
+        console.error('OpenAI API error:', error);
+        return null;
+    }
+}
+
+// Enhanced final judgment system with AI integration
+async function makeFinalJudgment(domain, aiResults, similarityResults, phishingIndicators) {
+    // Get AI analysis
+    const basicAnalysis = {
+        similarityResults,
+        phishingIndicators,
+        domainPatterns: DOMAIN_PATTERNS
+    };
+    
+    const aiAnalysis = await analyzeWithAI(domain, basicAnalysis);
+    
     let threatScore = 0;
     let confidence = 0;
     let reasons = [];
     
     // Weight different types of detections
     const weights = {
-        homograph_attack: 0.9,
-        suspicious_pattern: 0.8,
-        keyword_combination: 0.6,
-        security_term_abuse: 0.7,
-        similarity_match: 0.75
+        ai_analysis: 0.6,
+        similarity_match: 0.2,
+        phishing_indicators: 0.2
     };
 
-    // Process AI results
-    aiResults.forEach(result => {
-        const weight = weights[result.type] || 0.5;
-        threatScore += result.confidence * weight;
-        confidence = Math.max(confidence, result.confidence);
-        reasons.push(result.reason);
-    });
+    // Process AI results if available
+    if (aiAnalysis) {
+        const aiThreatLevelScore = {
+            'safe': 0,
+            'low': 0.3,
+            'medium': 0.6,
+            'high': 0.9
+        };
+        
+        threatScore += aiThreatLevelScore[aiAnalysis.aiThreatLevel] * weights.ai_analysis;
+        confidence = Math.max(confidence, aiAnalysis.aiConfidence);
+        reasons.push(...aiAnalysis.aiReasons);
+        
+        // Add any additional patterns found by AI
+        if (aiAnalysis.additionalPatterns) {
+            reasons.push(`AI detected additional suspicious patterns: ${aiAnalysis.additionalPatterns}`);
+        }
+    }
 
     // Process similarity results
     similarityResults.forEach(result => {
@@ -267,8 +341,14 @@ function makeFinalJudgment(domain, aiResults, similarityResults) {
         reasons.push(result.reason);
     });
 
+    // Process phishing indicators
+    if (phishingIndicators.length > 0) {
+        threatScore += 0.5 * weights.phishing_indicators;
+        reasons.push(...phishingIndicators);
+    }
+
     // Normalize threat score
-    const normalizedScore = threatScore / Math.max(aiResults.length + similarityResults.length, 1);
+    const normalizedScore = threatScore / (aiAnalysis ? 1 : 0.4); // Adjust if AI analysis is unavailable
 
     // Determine final threat level
     let threatLevel;
@@ -287,6 +367,7 @@ function makeFinalJudgment(domain, aiResults, similarityResults) {
         confidence: confidence.toFixed(2),
         score: normalizedScore.toFixed(2),
         reasons: [...new Set(reasons)], // Remove duplicates
+        aiAnalysis: aiAnalysis // Include AI analysis in response
     };
 }
 
@@ -304,14 +385,12 @@ router.post('/analyze', async (req, res) => {
         // Remove protocol and get domain
         const cleanDomain = domain.replace(/^https?:\/\//, '').split('/')[0];
         
-        // Get AI-based analysis results
-        const aiResults = analyzePatternWithAI(cleanDomain, DOMAIN_PATTERNS);
-        
-        // Get traditional similarity analysis results
+        // Get traditional analysis results
         const similarityResults = analyzeDomainSimilarity(cleanDomain);
+        const phishingIndicators = checkPhishingIndicators(cleanDomain);
 
-        // Make final judgment
-        const judgment = makeFinalJudgment(cleanDomain, aiResults, similarityResults);
+        // Make final judgment with AI integration
+        const judgment = await makeFinalJudgment(cleanDomain, [], similarityResults, phishingIndicators);
 
         res.json({
             success: true,
@@ -322,8 +401,9 @@ router.post('/analyze', async (req, res) => {
                 score: judgment.score,
                 reasons: judgment.reasons,
                 details: {
-                    aiDetections: aiResults,
-                    similarityMatches: similarityResults
+                    aiAnalysis: judgment.aiAnalysis,
+                    similarityMatches: similarityResults,
+                    phishingIndicators: phishingIndicators
                 },
                 timestamp: new Date().toISOString()
             }

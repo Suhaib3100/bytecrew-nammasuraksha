@@ -8,9 +8,8 @@
             margin: 0;
             padding: 20px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #FFEBEE;
-            color: #C62828;
-            text-align: center;
+            background: #FFF3E0;
+            color: #D32F2F;
         }
         
         .container {
@@ -20,147 +19,204 @@
             padding: 20px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 2px solid #F44336;
         }
         
-        .icon {
+        .warning-icon {
             font-size: 48px;
             margin-bottom: 16px;
+            color: #F44336;
+            text-align: center;
         }
         
         h1 {
             margin: 0 0 16px;
             font-size: 24px;
+            text-align: center;
+            color: #D32F2F;
         }
         
-        p {
-            margin: 8px 0;
+        .warning-message {
             color: #D32F2F;
+            font-weight: bold;
+            margin: 16px 0;
+            padding: 12px;
+            background: #FFEBEE;
+            border-radius: 4px;
+            text-align: center;
         }
         
         .details {
             margin-top: 20px;
             text-align: left;
             padding: 16px;
-            background: #FFEBEE;
+            background: #FFF3E0;
             border-radius: 4px;
         }
         
-        .warning-item {
+        .detail-item {
             display: flex;
             align-items: flex-start;
-            margin: 12px 0;
-            padding: 8px;
-            background: rgba(255, 0, 0, 0.05);
-            border-radius: 4px;
+            margin: 8px 0;
+            color: #333;
         }
         
-        .warning-icon {
+        .detail-icon {
             margin-right: 8px;
-            color: #D32F2F;
+            color: #F44336;
+            flex-shrink: 0;
         }
         
-        .warning-text {
-            flex: 1;
-            font-size: 14px;
-            line-height: 1.4;
+        .detail-text {
+            flex-grow: 1;
         }
         
         .buttons {
             margin-top: 20px;
             display: flex;
+            justify-content: space-between;
             gap: 10px;
-            justify-content: center;
         }
         
-        .proceed-button {
-            padding: 8px 16px;
-            background: #D32F2F;
+        .back-button {
+            flex: 1;
+            padding: 12px;
+            background: #F44336;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-weight: bold;
         }
         
-        .close-button {
-            padding: 8px 16px;
+        .proceed-button {
+            flex: 1;
+            padding: 12px;
             background: #9E9E9E;
             color: white;
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 14px;
+            font-weight: bold;
         }
         
-        button:hover {
-            opacity: 0.9;
+        .back-button:hover {
+            background: #D32F2F;
+        }
+        
+        .proceed-button:hover {
+            background: #757575;
+        }
+
+        .similarity-warning {
+            margin-top: 16px;
+            padding: 12px;
+            background: #FFF3E0;
+            border: 1px solid #FFB74D;
+            border-radius: 4px;
+            color: #E65100;
+        }
+
+        .legitimate-domain {
+            font-weight: bold;
+            color: #2E7D32;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="icon">⚠️</div>
+        <div class="warning-icon">⚠️</div>
         <h1>Security Warning</h1>
-        <p>Potential security risks detected on this website</p>
+        <div class="warning-message" id="warning-message">
+            Potential security threat detected!
+        </div>
         
-        <div class="details" id="warning-details">
-            <!-- Warning items will be inserted here by JavaScript -->
+        <div class="details">
+            <div class="detail-item">
+                <span class="detail-icon">🔍</span>
+                <div class="detail-text">
+                    <strong>Domain:</strong>
+                    <span id="domain-text"></span>
+                </div>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">⚠️</span>
+                <div class="detail-text">
+                    <strong>Threat Level:</strong>
+                    <span id="threat-level"></span>
+                </div>
+            </div>
+            <div class="detail-item">
+                <span class="detail-icon">❗</span>
+                <div class="detail-text">
+                    <strong>Reasons:</strong>
+                    <ul id="reason-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <div id="similarity-warning" class="similarity-warning" style="display: none;">
+            This domain appears to be impersonating:
+            <div class="legitimate-domain" id="legitimate-domain"></div>
         </div>
         
         <div class="buttons">
-            <button class="proceed-button" onclick="proceedAnyway()">Proceed Anyway</button>
-            <button class="close-button" onclick="window.close()">Go Back</button>
+            <button class="back-button" id="back-button">Go Back (Recommended)</button>
+            <button class="proceed-button" id="proceed-button">Proceed Anyway</button>
         </div>
     </div>
-    
-    <script>
-        function proceedAnyway() {
-            if (confirm('Are you sure you want to proceed? This website may be unsafe.')) {
-                window.close();
-            }
-        }
 
-        // Get analysis details from storage and display warnings
-        chrome.storage.local.get(['lastAnalysis'], function(data) {
-            if (data.lastAnalysis) {
-                const analysis = data.lastAnalysis;
-                document.querySelector('p').textContent = 
-                    `Security risks detected on ${analysis.url}`;
-                
-                const detailsContainer = document.getElementById('warning-details');
-                
-                // Display security checks that failed
-                if (analysis.result.details?.checks) {
-                    analysis.result.details.checks.forEach(check => {
-                        if (check.status === 'danger' || check.status === 'warning') {
-                            const warningItem = document.createElement('div');
-                            warningItem.className = 'warning-item';
-                            warningItem.innerHTML = `
-                                <span class="warning-icon">⚠️</span>
-                                <div class="warning-text">
-                                    <strong>${check.type}</strong><br>
-                                    ${check.message}
-                                </div>
-                            `;
-                            detailsContainer.appendChild(warningItem);
-                        }
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            chrome.storage.local.get(['lastAnalysis'], function(data) {
+                if (data.lastAnalysis) {
+                    const analysis = data.lastAnalysis.result;
+                    
+                    // Update warning message
+                    document.getElementById('warning-message').textContent = analysis.message;
+                    
+                    // Update domain
+                    document.getElementById('domain-text').textContent = analysis.details.domain;
+                    
+                    // Update threat level with appropriate color
+                    const threatLevel = document.getElementById('threat-level');
+                    threatLevel.textContent = analysis.threatLevel.toUpperCase();
+                    threatLevel.style.color = {
+                        high: '#F44336',
+                        medium: '#FF9800',
+                        low: '#FFC107'
+                    }[analysis.threatLevel] || '#F44336';
+                    
+                    // Update reasons
+                    const reasonList = document.getElementById('reason-list');
+                    analysis.details.reasons.forEach(reason => {
+                        const li = document.createElement('li');
+                        li.textContent = reason;
+                        reasonList.appendChild(li);
                     });
+
+                    // Show similarity warning if applicable
+                    if (analysis.details.matchDetails && analysis.details.matchDetails.length > 0) {
+                        const similarityWarning = document.getElementById('similarity-warning');
+                        const legitimateDomain = document.getElementById('legitimate-domain');
+                        const match = analysis.details.matchDetails[0];
+                        
+                        legitimateDomain.textContent = match.brand.toUpperCase();
+                        similarityWarning.style.display = 'block';
+                    }
                 }
-                
-                // If no specific checks failed, show general warning
-                if (detailsContainer.children.length === 0) {
-                    const warningItem = document.createElement('div');
-                    warningItem.className = 'warning-item';
-                    warningItem.innerHTML = `
-                        <span class="warning-icon">⚠️</span>
-                        <div class="warning-text">
-                            This website has not passed our security verification.
-                            Please proceed with caution.
-                        </div>
-                    `;
-                    detailsContainer.appendChild(warningItem);
+            });
+
+            // Add button handlers
+            document.getElementById('back-button').addEventListener('click', function() {
+                window.history.back();
+            });
+
+            document.getElementById('proceed-button').addEventListener('click', function() {
+                if (confirm('Are you sure you want to proceed? This site has been flagged as potentially dangerous.')) {
+                    window.close();
                 }
-            }
+            });
         });
     </script>
 </body>
