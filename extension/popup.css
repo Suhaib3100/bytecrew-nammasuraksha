@@ -53,15 +53,15 @@ body {
 .status-card.danger { background-color: #FFEBEE; }
 .status-card.unknown { background-color: #F5F5F5; }
 .status-card.error { background-color: #FFEBEE; }
+.status-card.analyzing {
+    background-color: #E3F2FD;
+    border-color: #2196F3;
+}
 
 .status-icon {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
 }
 
 .status-icon.safe::before { content: '✓'; color: var(--color-safe); }
@@ -69,6 +69,9 @@ body {
 .status-icon.danger::before { content: '⚠'; color: var(--color-danger); }
 .status-icon.unknown::before { content: '?'; color: var(--color-unknown); }
 .status-icon.error::before { content: '×'; color: var(--color-error); }
+.status-icon.analyzing {
+    background-image: url('icons/analyzing.svg');
+}
 
 .status-content {
     flex: 1;
@@ -139,10 +142,24 @@ body {
 /* Recommendations list */
 .recommendation-item {
     padding: 8px;
-    margin: 4px 0;
-    background: #E3F2FD;
-    border-radius: var(--border-radius);
-    font-size: 14px;
+    margin: 5px 0;
+    border-radius: 4px;
+    position: relative;
+    padding-left: 24px;
+}
+
+.recommendation-item::before {
+    content: "!";
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-weight: bold;
+    color: #FFC107;
+}
+
+.recommendation-item.danger::before {
+    color: #F44336;
 }
 
 /* Stats section */
@@ -161,14 +178,14 @@ body {
 }
 
 .stat-value {
-    font-size: 24px;
-    font-weight: 600;
+    font-size: 1.5em;
+    font-weight: bold;
     color: #2196F3;
 }
 
 .stat-label {
-    font-size: 12px;
-    color: #757575;
+    font-size: 0.8em;
+    color: #666;
 }
 
 /* Feature status */
@@ -237,13 +254,12 @@ button {
 
 /* Empty states */
 .empty-state {
-    text-align: center;
-    color: #757575;
+    color: #666;
     font-style: italic;
-    padding: 16px;
-    background: #F5F5F5;
-    border-radius: var(--border-radius);
-    margin: 8px 0;
+    text-align: center;
+    padding: 10px;
+    background-color: #F5F5F5;
+    border-radius: 4px;
 }
 
 /* Last updated timestamp */
@@ -252,4 +268,112 @@ button {
     color: #757575;
     text-align: right;
     margin-top: 16px;
+}
+
+/* Analysis States */
+.status-card.analyzing {
+    background-color: #E3F2FD;
+    border-color: #2196F3;
+}
+
+.status-icon.analyzing {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Domain Analysis */
+.domain-info {
+    padding: 10px;
+    background-color: #F5F5F5;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.check-item {
+    display: flex;
+    flex-direction: column;
+    padding: 8px;
+    margin: 5px 0;
+    border-radius: 4px;
+    border-left: 4px solid transparent;
+}
+
+.check-item.safe {
+    background-color: #E8F5E9;
+    border-left-color: #4CAF50;
+}
+
+.check-item.warning {
+    background-color: #FFF3E0;
+    border-left-color: #FFC107;
+}
+
+.check-item.danger {
+    background-color: #FFEBEE;
+    border-left-color: #F44336;
+}
+
+.check-type {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 0.8em;
+    color: #666;
+    margin-bottom: 4px;
+}
+
+.check-message {
+    color: #333;
+}
+
+/* Status Icons */
+.status-icon.low {
+    background-image: url('icons/check.svg');
+}
+
+.status-icon.medium {
+    background-image: url('icons/warning.svg');
+}
+
+.status-icon.high {
+    background-image: url('icons/danger.svg');
+}
+
+.status-icon.error {
+    background-image: url('icons/error.svg');
+}
+
+/* Stats Section */
+.stats-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #E0E0E0;
+}
+
+.stat-item {
+    text-align: center;
+    flex: 1;
+}
+
+.stat-value {
+    font-size: 1.5em;
+    font-weight: bold;
+    color: #2196F3;
+}
+
+.stat-label {
+    font-size: 0.8em;
+    color: #666;
+}
+
+/* Refresh Button */
+#refreshAnalysis:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 } 

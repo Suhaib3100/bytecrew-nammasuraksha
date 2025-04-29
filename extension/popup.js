@@ -1,6 +1,34 @@
 // DOM Elements
 let currentTab = null;
 let analysisInProgress = false;
+let port = null;
+
+// Establish connection with background script
+function connectToBackground() {
+    port = chrome.runtime.connect({ name: 'popup' });
+    port.onMessage.addListener(handleMessage);
+    port.onDisconnect.addListener(() => {
+        port = null;
+        setTimeout(connectToBackground, 1000); // Reconnect after 1 second
+    });
+}
+
+// Handle messages from background script
+function handleMessage(message) {
+    if (message.type === 'ANALYSIS_STATUS') {
+        updateThreatStatus(message.data);
+    } else if (message.type === 'ANALYSIS_COMPLETE') {
+        updateThreatStatus(message.data);
+        updateAnalysisDetails(message.data);
+        updateStats(message.data);
+        
+        // Enable refresh button
+        const refreshButton = document.getElementById('refreshAnalysis');
+        refreshButton.disabled = false;
+        refreshButton.textContent = 'Refresh Analysis';
+        analysisInProgress = false;
+    }
+}
 
 // Helper function to update threat status display
 function updateThreatStatus(analysis) {
@@ -12,14 +40,19 @@ function updateThreatStatus(analysis) {
     const threatStatusCard = document.getElementById('threatStatus');
     
     // Update status card appearance
-    threatStatusCard.className = 'status-card ' + threatLevel;
+    threatStatusCard.className = `status-card ${threatLevel}`;
     threatLevelElement.textContent = analysis.type === 'EMAIL_ANALYSIS' ? 
-        'Analyzing Email...' : 'Analyzing Website...';
+        'Email Analysis' : 'Website Security';
     statusMessageElement.textContent = message;
 
     // Show appropriate icon based on threat level
     const statusIcon = threatStatusCard.querySelector('.status-icon');
-    statusIcon.className = 'status-icon ' + threatLevel;
+    statusIcon.className = `status-icon ${threatLevel}`;
+
+    // Show analyzing state if needed
+    if (threatLevel === 'analyzing') {
+        statusIcon.classList.add('analyzing');
+    }
 }
 
 // Helper function to update the analysis details
@@ -35,19 +68,45 @@ function updateAnalysisDetails(analysis) {
     recommendationsList.innerHTML = '';
 
     if (analysis.details) {
-        // Update threats
-        if (analysis.details.threats && analysis.details.threats.length > 0) {
-            analysis.details.threats.forEach(threat => {
-                const threatItem = document.createElement('div');
-                threatItem.className = `threat-item ${threat.severity}`;
-                threatItem.innerHTML = `
-                    <span class="threat-severity">${threat.severity}</span>
-                    <span class="threat-description">${threat.description}</span>
-                `;
-                threatsList.appendChild(threatItem);
+        // Update domain info for website analysis
+        if (analysis.type === 'DOMAIN_ANALYSIS' && analysis.details.domain) {
+            const domainInfo = document.createElement('div');
+            domainInfo.className = 'domain-info';
+            domainInfo.innerHTML = `<strong>Domain:</strong> ${analysis.details.domain}`;
+            threatsList.appendChild(domainInfo);
+
+            // Display security checks
+            if (analysis.details.checks) {
+                analysis.details.checks.forEach(check => {
+                    const checkItem = document.createElement('div');
+                    checkItem.className = `check-item ${check.status}`;
+                    checkItem.innerHTML = `
+                        <span class="check-type">${check.type}</span>
+                        <span class="check-message">${check.message}</span>
+                    `;
+                    threatsList.appendChild(checkItem);
+                });
+            }
+        } else if (analysis.type === 'ERROR') {
+            const errorItem = document.createElement('div');
+            errorItem.className = 'check-item error';
+            errorItem.innerHTML = `
+                <span class="check-type">Error</span>
+                <span class="check-message">${analysis.details.error || 'Unknown error occurred'}</span>
+            `;
+            threatsList.appendChild(errorItem);
+        }
+
+        // Update recommendations
+        if (analysis.details.recommendations && analysis.details.recommendations.length > 0) {
+            analysis.details.recommendations.forEach(rec => {
+                const recItem = document.createElement('div');
+                recItem.className = `recommendation-item ${rec.severity}`;
+                recItem.textContent = rec.message;
+                recommendationsList.appendChild(recItem);
             });
         } else {
-            threatsList.innerHTML = '<p class="empty-state">No threats detected</p>';
+            recommendationsList.innerHTML = '<p class="empty-state">No recommendations needed</p>';
         }
 
         // Update suspicious patterns
@@ -60,18 +119,6 @@ function updateAnalysisDetails(analysis) {
             });
         } else {
             patternsList.innerHTML = '<p class="empty-state">No suspicious patterns detected</p>';
-        }
-
-        // Update recommendations
-        if (analysis.details.recommendations && analysis.details.recommendations.length > 0) {
-            analysis.details.recommendations.forEach(rec => {
-                const recItem = document.createElement('div');
-                recItem.className = 'recommendation-item';
-                recItem.textContent = rec;
-                recommendationsList.appendChild(recItem);
-            });
-        } else {
-            recommendationsList.innerHTML = '<p class="empty-state">No recommendations available</p>';
         }
     }
 
@@ -116,8 +163,8 @@ async function refreshAnalysis() {
         // Show analyzing state
         updateThreatStatus({
             type: 'ANALYZING',
-            threatLevel: 'unknown',
-            message: 'Analyzing content...'
+            threatLevel: 'analyzing',
+            message: 'Refreshing analysis...'
         });
 
         // Request new analysis
@@ -133,16 +180,20 @@ async function refreshAnalysis() {
             threatLevel: 'error',
             message: 'Failed to refresh analysis'
         });
-    } finally {
-        analysisInProgress = false;
+        
+        // Reset button state
         refreshButton.disabled = false;
         refreshButton.textContent = 'Refresh Analysis';
+        analysisInProgress = false;
     }
 }
 
 // Initialize popup
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Connect to background script
+        connectToBackground();
+
         // Get current tab
         const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
         currentTab = tab;
@@ -150,7 +201,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!tab.url || tab.url.startsWith('chrome://')) {
             updateThreatStatus({
                 type: 'ERROR',
-                threatLevel: 'unknown',
+                threatLevel: 'error',
                 message: 'Cannot analyze this page'
             });
             return;
@@ -159,7 +210,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Show initial analyzing state
         updateThreatStatus({
             type: 'ANALYZING',
-            threatLevel: 'unknown',
+            threatLevel: 'analyzing',
             message: 'Fetching analysis...'
         });
 
@@ -186,21 +237,5 @@ document.addEventListener('DOMContentLoaded', async () => {
             threatLevel: 'error',
             message: 'Failed to initialize'
         });
-    }
-});
-
-// Listen for analysis updates
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'EMAIL_ANALYSIS' || message.type === 'WEBPAGE_ANALYSIS') {
-        updateThreatStatus(message.data);
-        updateAnalysisDetails(message.data);
-        updateStats(message.data);
-        
-        // Update feature statuses
-        updateFeatureStatus('phishing', true);
-        updateFeatureStatus('email', message.type === 'EMAIL_ANALYSIS');
-        updateFeatureStatus('social', message.type === 'WEBPAGE_ANALYSIS' && 
-            currentTab?.url.includes('twitter.com') || 
-            currentTab?.url.includes('facebook.com'));
     }
 }); 

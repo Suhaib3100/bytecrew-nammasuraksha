@@ -44,8 +44,25 @@ async function performQuickDomainAnalysis(url) {
         const domain = extractDomain(url);
         if (!domain) return null;
 
+        // Update UI to show analyzing state
+        sendMessage({
+            type: 'ANALYSIS_STATUS',
+            data: {
+                type: 'DOMAIN_ANALYSIS',
+                threatLevel: 'analyzing',
+                message: 'Analyzing domain security...',
+                details: {
+                    domain: domain
+                }
+            }
+        });
+
         const cached = analysisCache.get(domain);
         if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION) {
+            sendMessage({
+                type: 'ANALYSIS_COMPLETE',
+                data: cached.result
+            });
             return cached.result;
         }
 
@@ -62,27 +79,75 @@ async function performQuickDomainAnalysis(url) {
         }
 
         const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error || 'Analysis failed');
+        }
+
         const result = {
             type: 'DOMAIN_ANALYSIS',
             threatLevel: data.analysis.threatLevel,
-            message: `Domain Analysis: ${domain}`,
-            details: data.analysis
+            message: `Domain Analysis Complete`,
+            details: {
+                domain: domain,
+                checks: data.analysis.checks,
+                recommendations: generateRecommendations(data.analysis)
+            }
         };
 
+        // Cache the results
         analysisCache.set(domain, {
             result,
             timestamp: Date.now()
         });
 
+        // Send results to popup
+        sendMessage({
+            type: 'ANALYSIS_COMPLETE',
+            data: result
+        });
+
+        // Update badge and stats
+        updateBadge(result, null);
+        updateStats(result);
+
         return result;
     } catch (error) {
         console.error('Error in quick domain analysis:', error);
-        return {
+        const errorResult = {
             type: 'ERROR',
-            threatLevel: 'unknown',
-            message: 'Failed to analyze domain'
+            threatLevel: 'error',
+            message: 'Failed to analyze domain',
+            details: {
+                error: error.message
+            }
         };
+
+        sendMessage({
+            type: 'ANALYSIS_COMPLETE',
+            data: errorResult
+        });
+
+        return errorResult;
     }
+}
+
+// Generate recommendations based on analysis
+function generateRecommendations(analysis) {
+    const recommendations = [];
+    
+    if (analysis.checks) {
+        analysis.checks.forEach(check => {
+            if (check.status === 'danger' || check.status === 'warning') {
+                recommendations.push({
+                    type: check.type,
+                    message: check.message,
+                    severity: check.status
+                });
+            }
+        });
+    }
+
+    return recommendations;
 }
 
 // Function to check if URL is allowed for analysis
@@ -211,34 +276,72 @@ async function extractEmailContent(tabId) {
     }
 }
 
-// Function to update badge
+// Handle tab updates with quick analysis
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    if (changeInfo.status === 'loading' && tab.url) {
+        if (isMailService(tab.url)) {
+            // For mail services, wait for complete load
+            chrome.runtime.sendMessage({
+                type: 'ANALYSIS_STATUS',
+                data: {
+                    type: 'EMAIL_ANALYSIS',
+                    threatLevel: 'analyzing',
+                    message: 'Waiting for email content...'
+                }
+            });
+            return;
+        }
+
+        // For regular websites, do quick domain analysis
+        const analysis = await performQuickDomainAnalysis(tab.url);
+        if (analysis) {
+            chrome.runtime.sendMessage({
+                type: 'ANALYSIS_COMPLETE',
+                data: analysis
+            });
+        }
+    } else if (changeInfo.status === 'complete') {
+        if (isMailService(tab.url)) {
+            // For mail services, analyze email content
+            await performEmailAnalysis(tabId);
+        }
+    }
+});
+
+// Update badge with appropriate color and text
 function updateBadge(analysis, tabId) {
     const colors = {
-        safe: '#4CAF50',    // Green
-        warning: '#FFC107', // Yellow
-        danger: '#F44336',  // Red
+        low: '#4CAF50',     // Green
+        medium: '#FFC107',  // Yellow
+        high: '#F44336',    // Red
+        analyzing: '#2196F3',// Blue
+        error: '#9E9E9E',   // Grey
         unknown: '#9E9E9E'  // Grey
     };
 
-    const threatLevels = {
-        low: 'safe',
-        medium: 'warning',
-        high: 'danger',
-        unknown: 'unknown'
+    const text = {
+        low: '✓',
+        medium: '!',
+        high: '⚠',
+        analyzing: '...',
+        error: 'X',
+        unknown: '?'
     };
 
-    const level = threatLevels[analysis.threatLevel] || 'unknown';
-    const color = colors[level];
-    const text = level.charAt(0).toUpperCase();
+    const color = colors[analysis.threatLevel] || colors.unknown;
+    const badgeText = text[analysis.threatLevel] || text.unknown;
 
-    chrome.action.setBadgeText({ text, tabId });
-    chrome.action.setBadgeBackgroundColor({ color, tabId });
-
-    // Send analysis results to popup
-    chrome.runtime.sendMessage({
-        type: analysis.type,
-        data: analysis
-    });
+    if (tabId) {
+        chrome.action.setBadgeBackgroundColor({ color, tabId });
+        chrome.action.setBadgeText({ text: badgeText, tabId });
+    } else {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+            if (tabs[0]) {
+                chrome.action.setBadgeBackgroundColor({ color, tabId: tabs[0].id });
+                chrome.action.setBadgeText({ text: badgeText, tabId: tabs[0].id });
+            }
+        });
+    }
 }
 
 // Listen for messages from popup and content scripts
@@ -383,27 +486,85 @@ async function updateStats(analysis) {
     await chrome.storage.local.set(newStats);
 }
 
-// Handle tab updates with quick analysis
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'loading' && tab.url) {
-        if (isMailService(tab.url)) {
-            // For mail services, wait for complete load to analyze email content
-            return;
+// Perform email analysis
+async function performEmailAnalysis(tabId) {
+    try {
+        // Update UI to show analyzing state
+        chrome.runtime.sendMessage({
+            type: 'ANALYSIS_STATUS',
+            data: {
+                type: 'EMAIL_ANALYSIS',
+                threatLevel: 'analyzing',
+                message: 'Analyzing email content...'
+            }
+        });
+
+        // Get email content
+        const content = await getEmailContent(tabId);
+        if (!content) {
+            throw new Error('Could not extract email content');
         }
 
-        // For regular websites, do quick domain analysis
-        const analysis = await performQuickDomainAnalysis(tab.url);
-        if (analysis) {
-            updateBadge(analysis, tabId);
-            chrome.runtime.sendMessage({
-                type: 'QUICK_ANALYSIS',
-                data: analysis
-            });
-        }
-    } else if (changeInfo.status === 'complete') {
-        if (isMailService(tab.url)) {
-            // For mail services, analyze email content
-            await performEmailAnalysis(tabId);
-        }
+        // Analyze content
+        const analysis = await ApiService.analyzeContent(content, 'EMAIL');
+        
+        // Cache and send results
+        analysisCache.set(tabId, {
+            result: analysis,
+            timestamp: Date.now()
+        });
+
+        // Send results to popup
+        chrome.runtime.sendMessage({
+            type: 'ANALYSIS_COMPLETE',
+            data: analysis
+        });
+
+        // Update badge
+        updateBadge(analysis, tabId);
+
+        return analysis;
+    } catch (error) {
+        console.error('Error in email analysis:', error);
+        const errorAnalysis = {
+            type: 'EMAIL_ANALYSIS',
+            threatLevel: 'error',
+            message: 'Failed to analyze email',
+            details: {
+                error: error.message
+            }
+        };
+
+        // Send error to popup
+        chrome.runtime.sendMessage({
+            type: 'ANALYSIS_COMPLETE',
+            data: errorAnalysis
+        });
+
+        return errorAnalysis;
     }
-}); 
+}
+
+// Fix message handling for long-lived connections
+let port = null;
+
+// Setup long-lived connection
+chrome.runtime.onConnect.addListener(function(connectionPort) {
+    port = connectionPort;
+    port.onDisconnect.addListener(function() {
+        port = null;
+    });
+});
+
+// Helper function to safely send messages
+function sendMessage(message) {
+    try {
+        if (port) {
+            port.postMessage(message);
+        } else {
+            chrome.runtime.sendMessage(message);
+        }
+    } catch (error) {
+        console.error('Error sending message:', error);
+    }
+} 

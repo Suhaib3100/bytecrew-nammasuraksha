@@ -7,10 +7,12 @@
     "activeTab",
     "storage",
     "tabs",
-    "webNavigation"
+    "webNavigation",
+    "scripting"
   ],
   "host_permissions": [
-    "http://localhost:3001/*"
+    "http://localhost:3001/*",
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background.js",
