@@ -17,46 +17,181 @@ const safeBrowsingRoutes = require('./routes/safeBrowsing');
 
 const app = express();
 
-// CORS configuration for Expo development and Chrome extension
+// CORS configuration with more permissive settings
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    const allowedOrigins = [
-      'http://localhost:3000',
-      'http://localhost:8081',
-      'http://localhost:19006', // Expo web
-      /^chrome-extension:\/\/.*$/, // Chrome extensions
-      /^http:\/\/192\.168\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
-      /^http:\/\/172\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
-      /^http:\/\/10\.\d{1,3}\.\d{1,3}\.\d{1,3}(:\d+)?$/, // Local network IPs
-    ];
-
-    const isAllowed = allowedOrigins.some(allowedOrigin => {
-      if (allowedOrigin instanceof RegExp) {
-        return allowedOrigin.test(origin);
-      }
-      return allowedOrigin === origin;
-    });
-
-    if (isAllowed) {
-      callback(null, true);
-    } else {
-      console.warn('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // Allow all origins
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'Accept',
+    'Origin',
+    'X-Requested-With',
+    'X-Extension-ID',
+    'Access-Control-Allow-Origin',
+    'Access-Control-Allow-Headers'
+  ],
+  exposedHeaders: ['Content-Length', 'X-Extension-ID'],
   credentials: true,
+  maxAge: 86400, // 24 hours
 };
 
 // Middleware
 app.use(cors(corsOptions));
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
+}));
 app.use(morgan('dev'));
 app.use(express.json());
+
+// Pre-flight requests for all routes
+app.options('*', cors(corsOptions));
+
+// Content analysis endpoint
+app.post('/api/content/analyze', async (req, res) => {
+  try {
+    const { content, context, type = 'email' } = req.body;
+    
+    // Ensure we have complete content to analyze
+    if (!content) {
+      return res.status(400).json({
+        success: false,
+        error: 'No content provided for analysis'
+      });
+    }
+
+    const analysis = {
+      isSuspicious: false,
+      threatLevel: 'safe', // safe, low, medium, high
+      reasons: [],
+      recommendations: [],
+      metadata: {
+        analyzedAt: new Date().toISOString(),
+        contentType: type,
+        contentLength: content.length
+      }
+    };
+
+    // Only analyze complete content, not partial messages
+    if (type === 'email') {
+      // Email-specific analysis patterns
+      const emailThreatPatterns = [
+        {
+          pattern: /(urgent|immediate)\s+(action|attention|response)\s+required/i,
+          level: 'medium',
+          reason: "Uses urgency tactics to pressure recipient",
+          recommendation: "Legitimate organizations rarely use extreme urgency in emails"
+        },
+        {
+          pattern: /verify.{0,20}(account|identity|password|login)/i,
+          level: 'high',
+          reason: "Requests account verification or login credentials",
+          recommendation: "Never click on links asking to verify your account - go directly to the website"
+        },
+        {
+          pattern: /(bank|paypal|credit.?card).{0,30}(verify|confirm|update)/i,
+          level: 'high',
+          reason: "Requests financial account verification",
+          recommendation: "Financial institutions never ask for sensitive information via email"
+        },
+        {
+          pattern: /suspicious.{0,20}(activity|login|access)/i,
+          level: 'medium',
+          reason: "Claims suspicious account activity",
+          recommendation: "Contact your service provider directly through official channels"
+        },
+        {
+          pattern: /(won|winner|lottery|prize|inheritance).{0,30}(claim|collect)/i,
+          level: 'high',
+          reason: "Promises unexpected financial rewards",
+          recommendation: "Be extremely cautious of unexpected prizes or money offers"
+        },
+        {
+          pattern: /password.{0,20}(expired|reset|change)/i,
+          level: 'medium',
+          reason: "Password-related request",
+          recommendation: "Only reset passwords through the official website"
+        }
+      ];
+
+      // Analyze complete email content
+      let highestThreatLevel = 'safe';
+      emailThreatPatterns.forEach(({ pattern, level, reason, recommendation }) => {
+        if (pattern.test(content)) {
+          analysis.isSuspicious = true;
+          if (!analysis.reasons.includes(reason)) {
+            analysis.reasons.push(reason);
+          }
+          if (!analysis.recommendations.includes(recommendation)) {
+            analysis.recommendations.push(recommendation);
+          }
+          
+          // Update threat level to highest detected
+          if (level === 'high' || (level === 'medium' && highestThreatLevel === 'safe')) {
+            highestThreatLevel = level;
+          }
+        }
+      });
+
+      analysis.threatLevel = highestThreatLevel;
+
+      // Check for suspicious URLs
+      const urlPattern = /https?:\/\/[^\s<>"]+/g;
+      const urls = content.match(urlPattern);
+      if (urls) {
+        analysis.metadata.urls = urls;
+        
+        // Check for URL manipulation tactics
+        const suspiciousUrlPatterns = [
+          {
+            pattern: /\.(tk|ml|ga|cf|gq|pw)$/i,
+            reason: "Contains URL with suspicious top-level domain",
+            recommendation: "Be cautious of links using uncommon domain extensions"
+          },
+          {
+            pattern: /bit\.ly|tinyurl|goo\.gl|t\.co/i,
+            reason: "Contains shortened URLs which may hide malicious links",
+            recommendation: "Avoid clicking shortened URLs in unexpected emails"
+          }
+        ];
+
+        urls.forEach(url => {
+          suspiciousUrlPatterns.forEach(({ pattern, reason, recommendation }) => {
+            if (pattern.test(url)) {
+              analysis.isSuspicious = true;
+              if (!analysis.reasons.includes(reason)) {
+                analysis.reasons.push(reason);
+                analysis.recommendations.push(recommendation);
+              }
+            }
+          });
+        });
+      }
+
+      // Add general safety recommendations if suspicious
+      if (analysis.isSuspicious) {
+        analysis.recommendations.push(
+          "Verify the sender's email address carefully",
+          "Do not download unexpected attachments",
+          "When in doubt, contact the supposed sender through a known, verified channel"
+        );
+      }
+    }
+
+    res.json({
+      success: true,
+      analysis
+    });
+  } catch (error) {
+    console.error('Error analyzing content:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error analyzing content',
+      message: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+});
 
 // Routes
 app.use('/api/analyze', analyzeRoutes);
@@ -88,6 +223,7 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log('Available endpoints:');
+    console.log('- POST /api/content/analyze - Analyze message content');
     console.log('- POST /api/quick/domain/analyze - Domain analysis endpoint');
     console.log('- POST /api/virustotal/analyze-url - VirusTotal URL analysis');
     console.log('- POST /api/safebrowsing/check-url - Google Safe Browsing check');

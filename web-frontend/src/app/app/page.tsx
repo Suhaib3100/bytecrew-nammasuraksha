@@ -71,7 +71,7 @@ export default function Page() {
             <div className="grid gap-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Scam Detection Trends</CardTitle>
+                  <CardTitle>Raksha Hub Trends</CardTitle>
                   <CardDescription>
                     Monthly detection rates across different scam types
                   </CardDescription>

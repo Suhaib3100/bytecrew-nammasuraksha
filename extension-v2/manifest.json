@@ -1,17 +1,26 @@
 {
   "manifest_version": 3,
-  "name": "NammaSuraksha Security Extension",
+  "name": "NammaSuraksha - Email & Message Security",
   "version": "1.0",
-  "description": "Protects users from phishing and malicious websites",
+  "description": "Protects against phishing and malicious content in emails and messages",
   "permissions": [
+    "activeTab",
+    "storage",
     "webNavigation",
     "tabs",
-    "activeTab",
     "scripting"
   ],
   "host_permissions": [
-    "http://*/*",
-    "https://*/*"
+    "http://localhost:3001/*",
+    "*://*.google.com/*",
+    "*://*.gmail.com/*",
+    "*://*.outlook.com/*",
+    "*://*.live.com/*",
+    "*://*.office.com/*",
+    "*://*.facebook.com/*",
+    "*://*.messenger.com/*",
+    "*://*.whatsapp.com/*",
+    "*://*.linkedin.com/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -31,9 +40,22 @@
   },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
+      "matches": [
+        "*://*.gmail.com/*",
+        "*://*.outlook.com/*",
+        "*://*.live.com/*",
+        "*://*.office.com/*",
+        "*://*.facebook.com/*",
+        "*://*.messenger.com/*",
+        "*://*.whatsapp.com/*",
+        "*://*.linkedin.com/*"
+      ],
       "js": ["content.js"],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     }
-  ]
+  ],
+  "web_accessible_resources": [{
+    "resources": ["warning.html", "warning.js", "icons/*"],
+    "matches": ["<all_urls>"]
+  }]
 } 

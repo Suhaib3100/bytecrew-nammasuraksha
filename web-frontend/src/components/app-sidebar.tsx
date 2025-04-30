@@ -84,8 +84,8 @@ export const navigationData = {
     {
       label: "Coming Soon",
       items: [
-        { name: "Chrome Extension", url: "#", icon: Chrome, disabled: true, tooltip: "Coming Soon" },
-        { name: "Mobile App", url: "#", icon: Smartphone, disabled: true, tooltip: "Coming Soon" },
+        { name: "Chrome Extension", url: "#", icon: Chrome, disabled: true, tooltip: "Launched (Beta)" },
+        { name: "Mobile App", url: "#", icon: Smartphone, disabled: true, tooltip: "Launched (Beta)" },
         { name: "Personal Risk Score", url: "#", icon: Activity, disabled: true, tooltip: "Coming Soon" },
         { name: "Learning Center", url: "#", icon: BookOpen, disabled: true, tooltip: "Coming Soon" },
         { name: "Scam Search Engine", url: "#", icon: Search, disabled: true, tooltip: "Coming Soon" },
@@ -141,7 +141,7 @@ export function AppSidebar({ pathname = "", ...props }: AppSidebarProps) {
                   <Command className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Scam Detection</span>
+                  <span className="truncate font-semibold">Raksha Hub</span>
                   <span className="truncate text-xs">Platform</span>
                 </div>
               </Link>
