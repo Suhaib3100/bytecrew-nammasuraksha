@@ -99,4 +99,4 @@ bytecrew-nammasuraksha/
 ## 📜 License
 
 For educational and hackathon use only.  
-Developed by Team ByteCrew for **NammaSuraksha Hackathon 2024**.
+Developed by Team ByteCrew for **NammaSuraksha Hackathon 2025**.
