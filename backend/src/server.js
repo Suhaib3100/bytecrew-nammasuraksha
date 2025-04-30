@@ -14,6 +14,7 @@ const reportsRoutes = require('./routes/reports');
 const domainAnalysisRoutes = require('./routes/domainAnalysis');
 const virusTotalRoutes = require('./routes/virusTotalAnalysis');
 const safeBrowsingRoutes = require('./routes/safeBrowsing');
+const whoisRoutes = require('./routes/whois');
 
 const app = express();
 
@@ -202,6 +203,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/quick/domain', domainAnalysisRoutes);
 app.use('/api/virustotal', virusTotalRoutes);
 app.use('/api/safebrowsing', safeBrowsingRoutes);
+app.use('/api/whois', whoisRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

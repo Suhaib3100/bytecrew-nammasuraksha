@@ -59,14 +59,53 @@
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
+            background: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .whois-table td {
-            padding: 8px;
+            padding: 12px;
             border-bottom: 1px solid #bbdefb;
+        }
+        .whois-table tr:last-child td {
+            border-bottom: none;
         }
         .whois-table td:first-child {
             font-weight: bold;
             width: 200px;
+            background-color: #f8f9fa;
+        }
+        .domain-owner-section {
+            background-color: #fff3e0;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+            border-left: 4px solid #ff9800;
+        }
+        .domain-owner-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .domain-owner-header i {
+            font-size: 24px;
+            color: #ff9800;
+        }
+        .domain-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .detail-card {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .detail-card h4 {
+            margin: 0 0 10px 0;
+            color: #ff9800;
         }
         .sources-section {
             margin-top: 20px;
@@ -111,6 +150,24 @@
         }
         #report-false-positive:hover {
             background-color: #616161;
+        }
+        .alert-box {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .alert-box.warning {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff9800;
+            color: #e65100;
+        }
+        .alert-box.info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #0d47a1;
         }
     </style>
 </head>

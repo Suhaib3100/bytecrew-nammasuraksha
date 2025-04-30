@@ -1,14 +1,123 @@
 // Get URL parameters
 function getUrlParameters() {
     const params = new URLSearchParams(window.location.search);
-    return {
-        type: params.get('type') || 'unknown',
-        source: params.get('source') || 'unknown',
-        threatLevel: params.get('threatLevel') || 'high',
-        reasons: JSON.parse(decodeURIComponent(params.get('reasons') || '[]')),
-        recommendations: JSON.parse(decodeURIComponent(params.get('recommendations') || '[]')),
-        detectedAt: params.get('detectedAt') || new Date().toISOString()
-    };
+    try {
+        return {
+            url: params.get('url') || '',
+            type: params.get('type') || 'unknown',
+            source: params.get('source') || 'unknown',
+            threatLevel: params.get('threatLevel') || 'high',
+            reasons: JSON.parse(params.get('reasons') || '[]'),
+            recommendations: JSON.parse(params.get('recommendations') || '[]'),
+            detectedAt: params.get('detectedAt') || new Date().toISOString(),
+            whoisInfo: JSON.parse(params.get('whoisInfo') || '{}'),
+            sources: JSON.parse(params.get('sources') || '[]'),
+            details: JSON.parse(params.get('details') || '[]')
+        };
+    } catch (error) {
+        console.error('Error parsing URL parameters:', error);
+        return {
+            url: params.get('url') || '',
+            type: 'unknown',
+            source: 'unknown',
+            threatLevel: 'high',
+            reasons: [],
+            recommendations: [],
+            detectedAt: new Date().toISOString(),
+            whoisInfo: {},
+            sources: [],
+            details: []
+        };
+    }
+}
+
+// Format WHOIS information
+function formatWhoisInfo(whoisInfo) {
+    console.log('Formatting WHOIS info:', whoisInfo);
+    
+    if (!whoisInfo || Object.keys(whoisInfo).length === 0) {
+        return `
+            <div class="alert-box warning">
+                <i>⚠️</i>
+                <div>
+                    <strong>WHOIS Information Unavailable:</strong> Unable to retrieve domain registration details. This could be due to privacy protection or API limitations.
+                </div>
+            </div>
+        `;
+    }
+
+    // Create domain owner section
+    const domainOwnerSection = `
+        <div class="domain-owner-section">
+            <div class="domain-owner-header">
+                <i>ℹ️</i>
+                <h3>Domain Information</h3>
+            </div>
+            <div class="alert-box warning">
+                <i>⚠️</i>
+                <div>
+                    <strong>Be Aware:</strong> This domain might be impersonating a legitimate website. Always verify the domain owner's information carefully.
+                </div>
+            </div>
+            <div class="domain-details">
+                <div class="detail-card">
+                    <h4>Registration Details</h4>
+                    <p><strong>Created:</strong> ${whoisInfo['Creation Date'] !== 'N/A' ? new Date(whoisInfo['Creation Date']).toLocaleDateString() : 'Unknown'}</p>
+                    <p><strong>Expires:</strong> ${whoisInfo['Expiration Date'] !== 'N/A' ? new Date(whoisInfo['Expiration Date']).toLocaleDateString() : 'Unknown'}</p>
+                    <p><strong>Last Updated:</strong> ${whoisInfo['Updated Date'] !== 'N/A' ? new Date(whoisInfo['Updated Date']).toLocaleDateString() : 'Unknown'}</p>
+                    <p><strong>Registrar:</strong> ${whoisInfo['Registrar'] || 'Unknown'}</p>
+                </div>
+                <div class="detail-card">
+                    <h4>Technical Details</h4>
+                    <p><strong>IP Addresses:</strong> ${whoisInfo['IP Addresses'] || 'N/A'}</p>
+                    <p><strong>Name Servers:</strong> ${whoisInfo['Name Servers'] || 'N/A'}</p>
+                    <p><strong>DNSSEC:</strong> ${whoisInfo['DNSSEC'] || 'N/A'}</p>
+                </div>
+            </div>
+            ${whoisInfo['MX Records'] ? `
+                <div class="detail-card" style="margin-top: 15px;">
+                    <h4>Email Configuration</h4>
+                    <p><strong>Mail Servers:</strong> ${whoisInfo['MX Records']}</p>
+                    ${whoisInfo['TXT Records'] ? `<p><strong>SPF/DMARC:</strong> ${whoisInfo['TXT Records']}</p>` : ''}
+                </div>
+            ` : ''}
+        </div>
+    `;
+
+    // Create the full WHOIS table for detailed information
+    const whoisTable = `
+        <div style="margin-top: 20px;">
+            <h4>Complete Registration Information</h4>
+            <table class="whois-table">
+                ${Object.entries(whoisInfo).map(([key, value]) => `
+                    <tr>
+                        <td>${key}</td>
+                        <td>${value}</td>
+                    </tr>
+                `).join('')}
+            </table>
+        </div>
+    `;
+
+    return domainOwnerSection + whoisTable;
+}
+
+// Format sources information
+function formatSources(sources) {
+    if (!sources || sources.length === 0) {
+        return '<p>No additional sources available.</p>';
+    }
+
+    return sources.map(source => `
+        <div class="source-item">
+            <span>🔗</span>
+            <div>
+                <strong>${source.name}</strong>
+                <p>${source.description}</p>
+                ${source.url ? `<a href="${source.url}" target="_blank">Learn more</a>` : ''}
+            </div>
+        </div>
+    `).join('');
 }
 
 // Format threat information into HTML
@@ -24,15 +133,29 @@ function formatThreatInfo(threat) {
         <div class="threat-container">
             <div class="threat-header" style="color: ${threatColors[threat.threatLevel]}">
                 <span class="warning-icon">⚠️</span>
-                <h2>Suspicious Message Detected!</h2>
+                <h2>Security Warning</h2>
             </div>
             
             <div class="threat-content">
+                <div class="dangerous-url">
+                    <strong>Suspicious URL:</strong> ${threat.url}
+                </div>
+
                 <div class="threat-section">
                     <h3>Why this is suspicious:</h3>
                     <ul class="threat-list">
                         ${threat.reasons.map(reason => `<li>${reason}</li>`).join('')}
                     </ul>
+                </div>
+
+                <div class="whois-info">
+                    <h3>Domain Information:</h3>
+                    ${formatWhoisInfo(threat.whoisInfo)}
+                </div>
+
+                <div class="sources-section">
+                    <h3>Sources and Additional Information:</h3>
+                    ${formatSources(threat.sources)}
                 </div>
 
                 <div class="threat-section">
@@ -175,18 +298,20 @@ function addStyles() {
 // Display threat information
 function displayThreatInfo() {
     const threatInfo = getUrlParameters();
+    console.log('Threat info:', threatInfo);
+    
     const container = document.getElementById('warning-container');
     if (container) {
         container.innerHTML = formatThreatInfo(threatInfo);
         
         // Add event listeners
-        document.getElementById('ignoreButton').addEventListener('click', () => {
+        document.getElementById('ignoreButton')?.addEventListener('click', () => {
             if (confirm('Are you sure you want to ignore this warning? This could be dangerous!')) {
                 window.close();
             }
         });
 
-        document.getElementById('blockButton').addEventListener('click', () => {
+        document.getElementById('blockButton')?.addEventListener('click', () => {
             chrome.runtime.sendMessage({
                 type: 'BLOCK_CONTENT',
                 data: threatInfo
@@ -194,7 +319,7 @@ function displayThreatInfo() {
             window.close();
         });
 
-        document.getElementById('reportButton').addEventListener('click', () => {
+        document.getElementById('reportButton')?.addEventListener('click', () => {
             chrome.runtime.sendMessage({
                 type: 'REPORT_FALSE_POSITIVE',
                 data: threatInfo
